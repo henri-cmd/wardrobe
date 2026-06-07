@@ -844,7 +844,7 @@ function fillInventory() {
   // group by category (canonical order). Items go in a container (sortable in custom-order list view);
   // any open needs render after it. Card view shows an image-forward grid.
   const view = f.view === "cards" ? "cards" : "list";
-  const canReorder = view === "list" && !f.q && !showNeeds;
+  const canReorder = view === "list" && !f.q;
   let html = canReorder ? '<div class="reorder-hint">Drag the <b>⠿</b> handle on the left of a row to reorder items within a category.</div>' : "";
   const groupBody = (cat, inCat, needCat) => {
     const itemsHtml = inCat.map(i => view === "cards" ? itemCard(i) : itemRow(i, canReorder)).join("");
