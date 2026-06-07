@@ -109,10 +109,10 @@ header {
 }
 .menu-cats { padding: 8px 8px 6px; }
 .menu-cats-head { font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin-bottom: 8px; }
-.cat-list { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 9px; }
+.cat-list { display: flex; flex-direction: column; gap: 5px; margin-bottom: 9px; }
 .cat-empty { font-size: 11.5px; color: var(--muted); }
-.cat-tag { display: inline-flex; align-items: center; gap: 4px; background: var(--surface2); border: 1px solid var(--border2); border-radius: 20px; padding: 3px 4px 3px 11px; font-size: 11.5px; color: var(--text); }
-.cat-name { background: transparent; border: none; color: var(--text); cursor: pointer; font-family: var(--sans); font-size: 11.5px; padding: 0; }
+.cat-tag { display: flex; align-items: center; gap: 6px; background: var(--surface2); border: 1px solid var(--border2); border-radius: 8px; padding: 5px 8px 5px 9px; font-size: 11.5px; color: var(--text); }
+.cat-name { flex: 1; min-width: 0; text-align: left; background: transparent; border: none; color: var(--text); cursor: pointer; font-family: var(--sans); font-size: 11.5px; padding: 0; overflow: hidden; text-overflow: ellipsis; }
 .cat-name:hover { color: var(--accent); text-decoration: underline; }
 .cat-rm { background: transparent; border: none; color: var(--muted); cursor: pointer; font-size: 15px; line-height: 1; padding: 0 4px; border-radius: 50%; }
 .cat-rm:hover { color: var(--red); }
@@ -170,6 +170,34 @@ header {
 .lightbox { position: fixed; inset: 0; background: rgba(0,0,0,0.86); backdrop-filter: blur(4px); z-index: 90; display: none; align-items: center; justify-content: center; padding: 24px; cursor: zoom-out; }
 .lightbox.show { display: flex; }
 .lightbox img { max-width: 92vw; max-height: 88vh; border-radius: 10px; box-shadow: 0 24px 80px rgba(0,0,0,0.6); object-fit: contain; }
+
+/* Drag-to-reorder */
+.drag-handle { color: var(--muted); cursor: grab; font-size: 16px; line-height: 1; padding: 0 2px; flex-shrink: 0; user-select: none; touch-action: none; opacity: 0.7; }
+.drag-handle:hover { color: var(--text); }
+.row .drag-handle { margin-right: -4px; }
+.row.dragging, .cat-tag.dragging { opacity: 0.55; }
+.row.dragging { background: var(--surface3); border-color: var(--accent-border); }
+.cat-tag.dragging { border-color: var(--accent-border); }
+body.dragging-active { cursor: grabbing; user-select: none; }
+body.dragging-active .drag-handle { cursor: grabbing; }
+.reorder-hint { color: var(--muted); font-size: 11.5px; font-family: var(--mono); margin: 0 2px 10px; }
+
+/* Card view */
+.group-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin-bottom: 6px; }
+.icard { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; display: flex; flex-direction: column; transition: .14s; }
+.icard:hover { border-color: var(--border2); }
+.icard.donate { opacity: 0.62; }
+.icard-img { position: relative; aspect-ratio: 1 / 1; background: var(--surface3); display: flex; align-items: center; justify-content: center; cursor: zoom-in; overflow: hidden; }
+.icard-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.icard-img .swatch { width: 46px; height: 46px; }
+.icard-qty { position: absolute; top: 6px; left: 6px; }
+.icard-donate { position: absolute; top: 6px; right: 6px; }
+.icard-body { padding: 9px 11px 4px; flex: 1; }
+.icard-name { font-weight: 600; font-size: 13px; letter-spacing: -0.01em; line-height: 1.35; }
+.icard-meta { color: var(--muted); font-size: 11px; font-family: var(--mono); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.icard-acts { display: flex; gap: 5px; padding: 6px 9px 9px; opacity: 0; transition: .14s; }
+.icard:hover .icard-acts { opacity: 1; }
+@media (hover: none) { .icard-acts { opacity: 1; } }
 input, select, textarea {
   background: var(--surface2); border: 1px solid var(--border2); color: var(--text);
   border-radius: var(--radius-sm); padding: 9px 11px; font-size: 13px; font-family: var(--sans);
@@ -540,7 +568,7 @@ const UI_KEY = "wardrobe.ui.v1";
 function defaultUi() {
   return {
     tab: "inventory",
-    inv: { q: "", cat: "", status: "", sort: "recent", showNeeds: false },
+    inv: { q: "", cat: "", status: "", sort: "recent", showNeeds: false, view: "list" },
     wishlist: { q: "", cat: "", type: "", sort: "priority", showClosed: false, addType: "need" }
   };
 }
@@ -643,8 +671,13 @@ function renderCatManager() {
   const el = document.getElementById("cat-list");
   if (!el) return;
   const cats = state.customCategories || [];
+  el.classList.toggle("sortable", cats.length > 1);
+  el.dataset.sortkind = "category";
   el.innerHTML = cats.length
-    ? cats.map(c => '<span class="cat-tag"><button class="cat-name" type="button" data-action="rename-cat" data-cat="' + esc(c) + '" title="Click to rename">' + esc(c) + '</button><button class="cat-rm" type="button" data-action="rm-cat" data-cat="' + esc(c) + '" title="Remove">×</button></span>').join("")
+    ? cats.map(c => '<span class="cat-tag" data-sortable data-id="' + esc(c) + '">' +
+        (cats.length > 1 ? '<span class="drag-handle" data-drag title="Drag to reorder">⠿</span>' : "") +
+        '<button class="cat-name" type="button" data-action="rename-cat" data-cat="' + esc(c) + '" title="Click to rename">' + esc(c) + "</button>" +
+        '<button class="cat-rm" type="button" data-action="rm-cat" data-cat="' + esc(c) + '" title="Remove">×</button></span>').join("")
     : '<div class="cat-empty">None yet — add one below.</div>';
 }
 function refreshCategorySelect(el, selVal) {
@@ -734,7 +767,11 @@ function renderInventory() {
       '<input class="search" id="inv-q" placeholder="Search items…" autocomplete="off" value="' + esc(ui.inv.q) + '">' +
       '<button type="button" id="inv-showneeds" class="toggle-pill' + (ui.inv.showNeeds ? " on" : "") + '" data-action="toggle-showneeds" title="Show the gaps you\'ve noted from Needs, slotted into each category">' + needsToggleHTML(openNeedsCount) + "</button>" +
       '<select id="inv-status"><option value="">All items</option><option value="keep"' + (ui.inv.status==="keep"?" selected":"") + '>Keeping</option><option value="donate"' + (ui.inv.status==="donate"?" selected":"") + '>To donate</option></select>' +
-      '<select id="inv-sort"><option value="recent"' + (ui.inv.sort==="recent"?" selected":"") + '>Recently added</option><option value="name"' + (ui.inv.sort==="name"?" selected":"") + '>Name A–Z</option><option value="colour"' + (ui.inv.sort==="colour"?" selected":"") + '>Colour</option></select>' +
+      '<select id="inv-sort"><option value="recent"' + (ui.inv.sort==="recent"?" selected":"") + '>Recently added</option><option value="name"' + (ui.inv.sort==="name"?" selected":"") + '>Name A–Z</option><option value="colour"' + (ui.inv.sort==="colour"?" selected":"") + '>Colour</option><option value="custom"' + (ui.inv.sort==="custom"?" selected":"") + '>Custom order</option></select>' +
+      '<div class="seg" id="inv-view">' +
+        '<button type="button" data-action="set-view" data-view="list" class="' + (ui.inv.view!=="cards"?"on":"") + '" title="List view"><svg class="svg sm" viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg></button>' +
+        '<button type="button" data-action="set-view" data-view="cards" class="' + (ui.inv.view==="cards"?"on":"") + '" title="Card view"><svg class="svg sm" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></button>' +
+      "</div>" +
     "</div>" +
     '<div id="inv-list"></div>';
   fillInventory();
@@ -776,7 +813,8 @@ function fillInventory() {
   const sorter = {
     recent: (a, b) => (b.createdAt || 0) - (a.createdAt || 0),
     name: (a, b) => (a.name || "").localeCompare(b.name || ""),
-    colour: (a, b) => (a.colour || "~").localeCompare(b.colour || "~")
+    colour: (a, b) => (a.colour || "~").localeCompare(b.colour || "~"),
+    custom: (a, b) => 0
   }[f.sort] || ((a, b) => 0);
 
   const listEl = document.getElementById("inv-list");
@@ -801,24 +839,30 @@ function fillInventory() {
     return;
   }
 
-  // group by category (in canonical order): items first, then any open needs in that category
-  let html = "";
+  // group by category (canonical order). Items go in a container (sortable in custom-order list view);
+  // any open needs render after it. Card view shows an image-forward grid.
+  const view = f.view === "cards" ? "cards" : "list";
+  const canReorder = view === "list" && f.sort === "custom" && !f.q && !showNeeds;
+  let html = canReorder ? '<div class="reorder-hint">Drag the ⠿ handles to reorder items within a category.</div>' : "";
+  const groupBody = (cat, inCat, needCat) => {
+    const itemsHtml = inCat.map(i => view === "cards" ? itemCard(i) : itemRow(i, canReorder)).join("");
+    const needsHtml = needCat.map(n => inventoryNeedRow(n)).join("");
+    if (view === "cards") return '<div class="group-cards">' + itemsHtml + "</div>" + needsHtml;
+    const attrs = canReorder ? ' class="group-items sortable" data-sortkind="item"' : ' class="group-items"';
+    return "<div" + attrs + ">" + itemsHtml + "</div>" + needsHtml;
+  };
   const order = f.cat ? [f.cat] : allCategories();
   order.forEach(cat => {
     const inCat = items.filter(i => i.category === cat).sort(sorter);
     const needCat = needs.filter(n => n.category === cat);
     if (!inCat.length && !needCat.length) return;
-    html += groupHead(cat, inCat.length, needCat.length);
-    inCat.forEach(i => { html += itemRow(i); });
-    needCat.forEach(n => { html += inventoryNeedRow(n); });
+    html += groupHead(cat, inCat.length, needCat.length) + groupBody(cat, inCat, needCat);
   });
   // categories not in the canonical list
   const others = items.filter(i => allCategories().indexOf(i.category) === -1).sort(sorter);
   const otherNeeds = needs.filter(n => allCategories().indexOf(n.category) === -1);
   if ((others.length || otherNeeds.length) && !f.cat) {
-    html += groupHead("Uncategorised", others.length, otherNeeds.length);
-    others.forEach(i => { html += itemRow(i); });
-    otherNeeds.forEach(n => { html += inventoryNeedRow(n); });
+    html += groupHead("Uncategorised", others.length, otherNeeds.length) + groupBody("Uncategorised", others, otherNeeds);
   }
   listEl.innerHTML = html;
 }
@@ -847,26 +891,50 @@ function inventoryNeedRow(n) {
 }
 
 function qtyOf(rec) { const n = parseInt(rec && rec.quantity, 10); return n >= 1 ? n : 1; }
-function itemRow(i) {
+const SVG_LINK = '<svg class="svg sm" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>';
+const SVG_HEART = '<svg class="svg sm" viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 1 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"/></svg>';
+const SVG_EDIT = '<svg class="svg sm" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>';
+const SVG_TRASH = '<svg class="svg sm" viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>';
+function itemMeta(i) {
+  const m = [];
+  if (i.brand) m.push(esc(i.brand));
+  if (i.colour) m.push(esc(i.colour));
+  if (i.season && i.season !== "All-season") m.push(esc(i.season));
+  return m;
+}
+function itemActs(i, iurl) {
+  return (iurl ? '<a class="act" href="' + esc(iurl) + '" target="_blank" rel="noopener" title="Open link">' + SVG_LINK + "</a>" : "") +
+    '<button class="act donate' + (i.status === "donate" ? " on" : "") + '" data-action="toggle-donate" data-id="' + i.id + '" title="' + (i.status === "donate" ? "Keep this" : "Mark to donate") + '">' + SVG_HEART + "</button>" +
+    '<button class="act" data-action="edit" data-type="item" data-id="' + i.id + '" title="Edit">' + SVG_EDIT + "</button>" +
+    '<button class="act del" data-action="delete" data-type="item" data-id="' + i.id + '" title="Delete">' + SVG_TRASH + "</button>";
+}
+function itemRow(i, drag) {
   const donate = i.status === "donate";
   const qn = qtyOf(i);
-  const meta = [];
-  if (i.brand) meta.push(esc(i.brand));
-  if (i.colour) meta.push(esc(i.colour));
-  if (i.season && i.season !== "All-season") meta.push(esc(i.season));
+  const meta = itemMeta(i);
   const metaHtml = meta.length ? '<div class="meta">' + meta.join(' <span class="sep">·</span> ') + "</div>" : "";
   const donatePill = donate ? '<span class="pill donate">donate</span>' : "";
   const iurl = safeUrl(i.url);
-  const ilink = iurl ? '<a class="act" href="' + esc(iurl) + '" target="_blank" rel="noopener" title="Open link"><svg class="svg sm" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></a>' : "";
-  return '<div class="row' + (donate ? " donate" : "") + '" data-id="' + i.id + '">' +
+  return '<div class="row' + (donate ? " donate" : "") + '" data-sortable data-id="' + i.id + '">' +
+    (drag ? '<span class="drag-handle" data-drag title="Drag to reorder">⠿</span>' : "") +
     (i.image ? '<span class="rthumb">' + thumbImg(i.image) + "</span>" : colourSwatch(i.colour)) +
     '<div class="main"><div class="name">' + esc(i.name) + " " + (qn > 1 ? '<span class="qty">×' + qn + "</span> " : "") + donatePill + "</div>" + metaHtml + "</div>" +
-    '<div class="acts">' +
-      ilink +
-      '<button class="act donate' + (donate ? " on" : "") + '" data-action="toggle-donate" data-id="' + i.id + '" title="' + (donate ? "Keep this" : "Mark to donate") + '"><svg class="svg sm" viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 1 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"/></svg></button>' +
-      '<button class="act" data-action="edit" data-type="item" data-id="' + i.id + '" title="Edit"><svg class="svg sm" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></button>' +
-      '<button class="act del" data-action="delete" data-type="item" data-id="' + i.id + '" title="Delete"><svg class="svg sm" viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg></button>' +
-    "</div></div>";
+    '<div class="acts">' + itemActs(i, iurl) + "</div></div>";
+}
+function itemCard(i) {
+  const donate = i.status === "donate";
+  const qn = qtyOf(i);
+  const meta = itemMeta(i).join(" · ");
+  const iurl = safeUrl(i.url);
+  return '<div class="icard' + (donate ? " donate" : "") + '" data-id="' + i.id + '">' +
+    '<div class="icard-img">' +
+      (i.image ? thumbImg(i.image) : '<span class="icard-swatch">' + colourSwatch(i.colour) + "</span>") +
+      (qn > 1 ? '<span class="qty icard-qty">×' + qn + "</span>" : "") +
+      (donate ? '<span class="pill donate icard-donate">donate</span>' : "") +
+    "</div>" +
+    '<div class="icard-body"><div class="icard-name">' + esc(i.name) + "</div>" +
+      (meta ? '<div class="icard-meta">' + meta + "</div>" : "") + "</div>" +
+    '<div class="icard-acts">' + itemActs(i, iurl) + "</div></div>";
 }
 
 /* ---------- Wishlist (gaps + options, grouped by category like Inventory) ---------- */
@@ -1479,7 +1547,7 @@ document.addEventListener("submit", e => {
 document.addEventListener("click", e => {
   // Lightbox: clicking it closes; clicking any thumbnail opens it big.
   if (e.target.closest("#lightbox")) { closeLightbox(); return; }
-  const thumbEl = e.target.closest(".rthumb, .thumb-preview");
+  const thumbEl = e.target.closest(".rthumb, .thumb-preview, .icard-img");
   if (thumbEl) { const im = thumbEl.querySelector("img"); if (im && im.getAttribute("src")) { openLightbox(im.getAttribute("src")); return; } }
   // Close the modal only when the backdrop itself is clicked (not children that bubble up).
   if (e.target.classList && e.target.classList.contains("modal-backdrop")) { closeEditor(); return; }
@@ -1512,6 +1580,7 @@ document.addEventListener("click", e => {
     case "filter-cat": ui.inv.cat = (ui.inv.cat === actEl.dataset.cat) ? "" : actEl.dataset.cat; fillInventory(); break;
     case "goto-cat": ui.tab = "inventory"; ui.inv.cat = actEl.dataset.cat; ui.inv.q = ""; ui.inv.status = ""; renderMain(); window.scrollTo(0, 0); break;
     case "toggle-showneeds": ui.inv.showNeeds = !ui.inv.showNeeds; renderInventory(); break;
+    case "set-view": ui.inv.view = actEl.dataset.view; renderInventory(); break;
     case "wish-filter-cat": ui.wishlist.cat = (ui.wishlist.cat === actEl.dataset.cat) ? "" : actEl.dataset.cat; fillWishlist(); break;
     case "toggle-showclosed": ui.wishlist.showClosed = !ui.wishlist.showClosed; renderWishlist(); break;
     case "rm-cat": removeCustomCategory(actEl.dataset.cat); break;
@@ -1595,6 +1664,57 @@ document.addEventListener("keydown", e => {
   else if (e.key === "1") { ui.tab = "inventory"; renderMain(); window.scrollTo(0, 0); }
   else if (e.key === "2") { ui.tab = "wishlist"; renderMain(); window.scrollTo(0, 0); }
 });
+
+/* ---------- Drag-to-reorder (pointer-based; works with mouse & touch) ---------- */
+let dragCtx = null;
+function sortableIds(container) {
+  return [...container.children].filter(c => c.matches && c.matches("[data-sortable]")).map(c => c.dataset.id);
+}
+document.addEventListener("pointerdown", e => {
+  const handle = e.target.closest("[data-drag]");
+  if (!handle) return;
+  const item = handle.closest("[data-sortable]");
+  const container = item && item.closest(".sortable");
+  if (!item || !container || item.parentElement !== container) return;
+  e.preventDefault();
+  dragCtx = { item, container, kind: container.dataset.sortkind, orig: sortableIds(container).join(",") };
+  item.classList.add("dragging");
+  document.body.classList.add("dragging-active");
+});
+document.addEventListener("pointermove", e => {
+  if (!dragCtx) return;
+  e.preventDefault();
+  const { item, container } = dragCtx;
+  const sibs = [...container.children].filter(c => c !== item && c.matches && c.matches("[data-sortable]"));
+  let before = null;
+  for (const s of sibs) { const r = s.getBoundingClientRect(); if (e.clientY < r.top + r.height / 2) { before = s; break; } }
+  if (before) { if (item.nextElementSibling !== before) container.insertBefore(item, before); }
+  else if (container.lastElementChild !== item) container.appendChild(item);
+});
+function endDrag() {
+  if (!dragCtx) return;
+  const { item, container, kind, orig } = dragCtx;
+  item.classList.remove("dragging");
+  document.body.classList.remove("dragging-active");
+  const ids = sortableIds(container);
+  dragCtx = null;
+  if (ids.join(",") === orig) return;        // no actual change
+  if (kind === "category") commitCategoryOrder(ids);
+  else commitItemOrder(ids);
+}
+document.addEventListener("pointerup", endDrag);
+document.addEventListener("pointercancel", endDrag);
+function commitCategoryOrder(ids) {
+  state.customCategories = ids.slice();
+  save(); renderCatManager(); renderMain();
+}
+function commitItemOrder(ids) {
+  const idset = new Set(ids);
+  const ordered = ids.map(id => state.items.find(it => it.id === id)).filter(Boolean);
+  let k = 0;
+  state.items = state.items.map(it => idset.has(it.id) ? ordered[k++] : it);
+  save(); renderStats(); fillInventory();
+}
 
 /* ---------- Init ---------- */
 document.getElementById("cur-input").value = state.settings.currency || "£";

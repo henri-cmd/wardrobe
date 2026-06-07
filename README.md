@@ -12,7 +12,8 @@ No build step, no dependencies, no account. Open `index.html` in a browser and g
 - **Wishlist** — your **gaps** and the **options** to fill them, sorted into the same categories as your wardrobe. Gaps carry a priority; options carry a brand, price, status (considering / shortlisted / bought / passed), a link, and a running shortlist total. Each category shows how many you already own, so you can tell whether something fills a real gap.
 - **Images** — give any item or option a picture: **upload** a file, **paste** an image, **fetch** it from a product link, or enter an image URL. Uploads are downscaled to fit local storage; click any thumbnail to view it full-size.
 - **Add by link** — paste a product link on an item or option and it auto-fills the **name**, **image** and **brand** (via the [microlink](https://microlink.io) metadata service, with an OpenGraph fallback).
-- **Custom categories** — add your own categories (inline in any category dropdown, or in Settings), rename or delete them; they group and persist like the rest. No built-in defaults — the taxonomy is entirely yours.
+- **Custom categories** — add your own categories (inline in any category dropdown, or in Settings), rename, delete, or **drag to reorder** them; they group and persist like the rest. No built-in defaults — the taxonomy is entirely yours.
+- **Views & ordering** — switch Inventory between a **list** and an image-forward **card** view, sort by recent / name / colour, or pick **Custom order** and drag items to arrange them within each category.
 - **Flows** — turn a gap into an option, then drop a bought option straight into your wardrobe.
 - **Yours, and portable** — JSON export / import for backups; your wardrobe data stays in your browser.
 
