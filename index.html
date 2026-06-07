@@ -1166,13 +1166,51 @@ function thumbImg(src) {
 async function fetchLinkMeta(rawUrl) {
   const url = safeUrl(rawUrl);
   if (!url) throw new Error("bad url");
-  const api = "https://api.microlink.io/?url=" + encodeURIComponent(url) + "&audio=false&video=false";
-  const res = await fetch(api);
-  if (!res.ok) throw new Error("http " + res.status);
-  const j = await res.json();
-  if (j.status !== "success" || !j.data) throw new Error("no data");
-  const img = (j.data.image && j.data.image.url) || (j.data.logo && j.data.logo.url) || "";
-  return { title: (j.data.title || "").trim(), image: img };
+  let title = "", image = "";
+  // 1) microlink — clean metadata, but its free tier can't read antibot-protected shops
+  try {
+    const res = await fetch("https://api.microlink.io/?url=" + encodeURIComponent(url) + "&audio=false&video=false");
+    if (res.ok) {
+      const j = await res.json();
+      if (j && j.status === "success" && j.data) {
+        image = (j.data.image && j.data.image.url) || (j.data.logo && j.data.logo.url) || "";
+        title = (j.data.title || "").trim();
+      }
+    }
+  } catch (e) { /* fall through to the proxy */ }
+  // 2) fallback — fetch the raw HTML through a CORS proxy and parse the OpenGraph tags ourselves
+  if (!image) {
+    try {
+      const m = await fetchMetaViaProxy(url);
+      if (m.image) image = m.image;
+      if (!title && m.title) title = m.title;
+    } catch (e) { /* both paths failed */ }
+  }
+  if (image.indexOf("//") === 0) image = "https:" + image;
+  if (image.indexOf("http://") === 0) image = "https://" + image.slice(7); // avoid mixed-content on HTTPS hosting
+  if (!image && !title) throw new Error("no metadata");
+  return { title: title, image: image };
+}
+async function fetchMetaViaProxy(url) {
+  const res = await fetch("https://corsproxy.io/?url=" + encodeURIComponent(url));
+  if (!res.ok) throw new Error("proxy http " + res.status);
+  const html = (await res.text()).slice(0, 500000);
+  const meta = prop => {
+    const a = html.match(new RegExp('<meta[^>]+(?:property|name)=["\']' + prop + '["\'][^>]*content=["\']([^"\']+)', "i"));
+    if (a) return a[1];
+    const b = html.match(new RegExp('<meta[^>]+content=["\']([^"\']+)["\'][^>]*(?:property|name)=["\']' + prop + '["\']', "i"));
+    return b ? b[1] : "";
+  };
+  let image = meta("og:image") || meta("og:image:secure_url") || meta("twitter:image") || meta("twitter:image:src") || "";
+  let title = meta("og:title") || meta("twitter:title") || "";
+  if (!title) { const t = html.match(/<title[^>]*>([^<]*)<\/title>/i); title = t ? t[1] : ""; }
+  return { title: decodeEntities(title.trim()), image: decodeEntities(image.trim()) };
+}
+function decodeEntities(s) {
+  if (!s || s.indexOf("&") === -1) return s || "";
+  const ta = document.createElement("textarea");
+  ta.innerHTML = s;
+  return ta.value;
 }
 function paintPreview(wrapId, src, onClear) {
   const wrap = document.getElementById(wrapId);

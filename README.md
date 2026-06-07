@@ -32,4 +32,4 @@ python3 -m http.server 8000
 
 Plain HTML, CSS and vanilla JavaScript in a single file. Fonts via Google Fonts (DM Sans / DM Mono). State persists in `localStorage`; no backend.
 
-The only network call is optional: when you use **Add by link**, the URL is sent to the hosted [microlink](https://microlink.io) API to fetch the title and image (free tier ~50/day). Everything else runs entirely in your browser.
+The only network calls are optional: when you use **Add by link**, the URL is sent to [microlink](https://microlink.io) to fetch the title and image, with a [corsproxy.io](https://corsproxy.io) + OpenGraph-parsing fallback for shops microlink's free tier can't read (e.g. antibot-protected stores). Everything else runs entirely in your browser.
