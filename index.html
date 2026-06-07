@@ -790,8 +790,8 @@ function fillInventory() {
   // category distribution chips (from full inventory)
   const counts = {};
   state.items.forEach(i => { counts[i.category] = (counts[i.category] || 0) + 1; });
-  const catList = allCategories().filter(c => counts[c]).sort((a, b) => counts[b] - counts[a]);
-  const max = catList.length ? counts[catList[0]] : 1;
+  const catList = allCategories().filter(c => counts[c]);   // follow the user's custom category order
+  const max = catList.reduce((m, c) => counts[c] > m ? counts[c] : m, 1);
   const chipsEl = document.getElementById("inv-cats");
   if (chipsEl) {
     chipsEl.innerHTML = catList.map(c => {
@@ -1010,8 +1010,8 @@ function fillWishlist() {
   const counts = {};
   state.needs.filter(n => !n.done).forEach(n => { counts[n.category] = (counts[n.category] || 0) + 1; });
   state.consider.filter(c => c.status !== "Bought" && c.status !== "Passed").forEach(c => { counts[c.category] = (counts[c.category] || 0) + 1; });
-  const catList = allCategories().filter(c => counts[c]).sort((a, b) => counts[b] - counts[a]);
-  const max = catList.length ? counts[catList[0]] : 1;
+  const catList = allCategories().filter(c => counts[c]);   // follow the user's custom category order
+  const max = catList.reduce((m, c) => counts[c] > m ? counts[c] : m, 1);
   const chipsEl = document.getElementById("wish-cats");
   if (chipsEl) {
     chipsEl.innerHTML = catList.map(c => {
