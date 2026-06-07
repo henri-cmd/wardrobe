@@ -107,6 +107,15 @@ header {
   width: 56px; background: var(--surface2); border: 1px solid var(--border2); color: var(--text);
   border-radius: 6px; padding: 5px 8px; font-family: var(--mono); text-align: center;
 }
+.menu-cats { padding: 8px 8px 6px; }
+.menu-cats-head { font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin-bottom: 8px; }
+.cat-list { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 9px; }
+.cat-empty { font-size: 11.5px; color: var(--muted); }
+.cat-tag { display: inline-flex; align-items: center; gap: 4px; background: var(--surface2); border: 1px solid var(--border2); border-radius: 20px; padding: 3px 4px 3px 11px; font-size: 11.5px; color: var(--text); }
+.cat-rm { background: transparent; border: none; color: var(--muted); cursor: pointer; font-size: 15px; line-height: 1; padding: 0 4px; border-radius: 50%; }
+.cat-rm:hover { color: var(--red); }
+.cat-add { display: flex; gap: 6px; }
+.cat-add input { flex: 1; min-width: 0; padding: 6px 9px; font-size: 12px; }
 
 /* Stats */
 .stats { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 22px; }
@@ -143,6 +152,18 @@ header {
   padding: 12px; margin-bottom: 16px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center;
 }
 .quickbar .grow { flex: 1; min-width: 150px; }
+.linkrow { display: flex; gap: 8px; align-items: center; flex-basis: 100%; }
+.linkrow .grow { min-width: 120px; }
+.thumb-preview { width: 0; height: 34px; border-radius: 7px; overflow: hidden; flex-shrink: 0; transition: width .15s; }
+.thumb-preview.has { width: 34px; border: 1px solid var(--border2); }
+.thumb-preview img, .rthumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.thumb-preview.edit { width: 88px; height: 88px; margin-top: 8px; background: var(--surface3); }
+.thumb-preview.edit:not(.has) { display: none; }
+.img-field { display: flex; gap: 6px; align-items: center; }
+.img-field input { flex: 1; min-width: 0; }
+.rthumb { width: 34px; height: 34px; border-radius: 7px; overflow: hidden; flex-shrink: 0; border: 1px solid var(--border2); background: var(--surface3); position: relative; }
+.rthumb.broken img { display: none; }
+.rthumb.withdot .opt-dot { position: absolute; right: -3px; bottom: -3px; width: 10px; height: 10px; box-shadow: 0 0 0 2px var(--surface); }
 input, select, textarea {
   background: var(--surface2); border: 1px solid var(--border2); color: var(--text);
   border-radius: var(--radius-sm); padding: 9px 11px; font-size: 13px; font-family: var(--sans);
@@ -399,6 +420,15 @@ textarea { resize: vertical; min-height: 60px; }
           <input class="cur-input" id="cur-input" maxlength="3" value="£">
         </div>
         <div class="menu-sep"></div>
+        <div class="menu-cats">
+          <div class="menu-cats-head">Custom categories</div>
+          <div id="cat-list" class="cat-list"></div>
+          <form id="form-cat" class="cat-add">
+            <input id="cat-new" placeholder="Add a category…" autocomplete="off" maxlength="30">
+            <button class="btn sm" type="submit">Add</button>
+          </form>
+        </div>
+        <div class="menu-sep"></div>
         <button class="menu-btn" data-action="export"><svg class="svg sm" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>Export backup (JSON)</button>
         <button class="menu-btn" data-action="import"><svg class="svg sm" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg>Import backup</button>
         <div class="menu-sep"></div>
@@ -452,12 +482,21 @@ const COLOURS = {
 };
 
 /* ---------- State ---------- */
-function blank() { return { items: [], needs: [], consider: [], settings: { currency: "£" }, onboarded: false }; }
+function blank() { return { items: [], needs: [], consider: [], customCategories: [], settings: { currency: "£" }, onboarded: false }; }
 function normalize(d) {
   if (!d || typeof d !== "object") return blank();
   d.items = Array.isArray(d.items) ? d.items : [];
   d.needs = Array.isArray(d.needs) ? d.needs : [];
   d.consider = Array.isArray(d.consider) ? d.consider : [];
+  d.customCategories = Array.isArray(d.customCategories) ? d.customCategories : [];
+  // dedupe, drop blanks and any that collide with built-in categories (case-insensitive)
+  const seenCat = new Set(CATEGORIES.map(c => c.toLowerCase()));
+  d.customCategories = d.customCategories.filter(c => {
+    if (typeof c !== "string") return false;
+    const k = c.trim().toLowerCase();
+    if (!k || seenCat.has(k)) return false;
+    seenCat.add(k); return true;
+  }).map(c => c.trim());
   d.settings = d.settings || {};
   if (!d.settings.currency) d.settings.currency = "£";
   d.onboarded = !!d.onboarded;
@@ -530,11 +569,71 @@ function safeUrl(u) {
 function opts(list, sel) {
   return list.map(o => '<option value="' + esc(o) + '"' + (o === sel ? " selected" : "") + ">" + esc(o) + "</option>").join("");
 }
+
+/* ---------- Categories (built-in + user-defined) ---------- */
+function allCategories() { return CATEGORIES.concat(state.customCategories || []); }
+function canonicalCategory(name) {
+  const k = (name || "").trim().toLowerCase();
+  return allCategories().find(c => c.toLowerCase() === k) || (name || "").trim();
+}
+function cleanCat(v) { return (!v || v === "__new__") ? "Other" : v; }
+function addCustomCategory(name) {
+  name = (name || "").trim();
+  if (!name || name === "__new__") return false;
+  if (allCategories().some(c => c.toLowerCase() === name.toLowerCase())) return false;
+  state.customCategories.push(name);
+  save();
+  return true;
+}
+function removeCustomCategory(cat) {
+  const inUse = state.items.filter(i => i.category === cat).length +
+                state.needs.filter(n => n.category === cat).length +
+                state.consider.filter(c => c.category === cat).length;
+  state.customCategories = state.customCategories.filter(c => c !== cat);
+  save(); renderCatManager(); renderMain();
+  if (inUse) {
+    showToast("Removed “" + cat + "” — " + inUse + " entr" + (inUse === 1 ? "y is" : "ies are") + " now uncategorised", "Undo", () => {
+      if (!state.customCategories.includes(cat)) state.customCategories.push(cat);
+      save(); renderCatManager(); renderMain();
+    });
+  } else {
+    showToast("Removed “" + cat + "”", null);
+  }
+}
+function renderCatManager() {
+  const el = document.getElementById("cat-list");
+  if (!el) return;
+  const cats = state.customCategories || [];
+  el.innerHTML = cats.length
+    ? cats.map(c => '<span class="cat-tag">' + esc(c) + '<button class="cat-rm" type="button" data-action="rm-cat" data-cat="' + esc(c) + '" title="Remove">×</button></span>').join("")
+    : '<div class="cat-empty">None yet — add one below.</div>';
+}
+function refreshCategorySelect(el, selVal) {
+  const withPlaceholder = el.id !== "e-cat";
+  let html = "";
+  if (withPlaceholder) html += '<option value="" disabled' + (selVal ? "" : " selected") + ">Category…</option>";
+  html += opts(allCategories(), selVal) + '<option value="__new__">+ New category…</option>';
+  el.innerHTML = html;
+  el.value = selVal;
+}
+function handleNewCategory(selectEl) {
+  const name = (window.prompt("New category name") || "").trim();
+  let selVal;
+  if (name) { addCustomCategory(name); selVal = canonicalCategory(name); }
+  else if (selectEl.id === "e-cat") {
+    const form = document.getElementById("form-edit");
+    const rec = form ? find(form.dataset.type, form.dataset.id) : null;
+    selVal = rec ? rec.category : "";
+  } else selVal = "";
+  refreshCategorySelect(selectEl, selVal);
+  renderCatManager();
+}
+
 function catSelect(id, sel, opts2) {
   opts2 = opts2 || {};
   const placeholder = opts2.placeholder || "Category…";
   const all = opts2.all ? '<option value="">All categories</option>' : '<option value="" disabled' + (sel ? "" : " selected") + ">" + esc(placeholder) + "</option>";
-  return '<select id="' + id + '">' + all + opts(CATEGORIES, sel) + "</select>";
+  return '<select id="' + id + '">' + all + opts(allCategories(), sel) + (opts2.all ? "" : '<option value="__new__">+ New category…</option>') + "</select>";
 }
 
 /* ---------- Stats ---------- */
@@ -578,6 +677,11 @@ function renderInventory() {
   document.getElementById("main").innerHTML =
     intro +
     '<form class="quickbar" id="form-inv">' +
+      '<div class="linkrow">' +
+        '<input class="grow" id="inv-link" placeholder="🔗 Paste a product link to auto-fill name &amp; image (optional)" autocomplete="off">' +
+        '<button type="button" class="btn ghost sm" id="inv-fetch" data-action="fetch-link" data-for="inv">Fetch</button>' +
+        '<div class="thumb-preview" id="inv-thumb"></div>' +
+      "</div>" +
       '<input class="grow" id="inv-name" placeholder="Item name (e.g. Oxford shirt)" autocomplete="off" required>' +
       catSelect("inv-cat", "", { placeholder: "Category…" }) +
       '<input id="inv-colour" placeholder="Colour" autocomplete="off" style="width:120px">' +
@@ -605,7 +709,7 @@ function fillInventory() {
   // category distribution chips (from full inventory)
   const counts = {};
   state.items.forEach(i => { counts[i.category] = (counts[i.category] || 0) + 1; });
-  const catList = CATEGORIES.filter(c => counts[c]).sort((a, b) => counts[b] - counts[a]);
+  const catList = allCategories().filter(c => counts[c]).sort((a, b) => counts[b] - counts[a]);
   const max = catList.length ? counts[catList[0]] : 1;
   const chipsEl = document.getElementById("inv-cats");
   if (chipsEl) {
@@ -657,7 +761,7 @@ function fillInventory() {
 
   // group by category (in canonical order): items first, then any open needs in that category
   let html = "";
-  const order = f.cat ? [f.cat] : CATEGORIES;
+  const order = f.cat ? [f.cat] : allCategories();
   order.forEach(cat => {
     const inCat = items.filter(i => i.category === cat).sort(sorter);
     const needCat = needs.filter(n => n.category === cat);
@@ -667,8 +771,8 @@ function fillInventory() {
     needCat.forEach(n => { html += inventoryNeedRow(n); });
   });
   // categories not in the canonical list
-  const others = items.filter(i => CATEGORIES.indexOf(i.category) === -1).sort(sorter);
-  const otherNeeds = needs.filter(n => CATEGORIES.indexOf(n.category) === -1);
+  const others = items.filter(i => allCategories().indexOf(i.category) === -1).sort(sorter);
+  const otherNeeds = needs.filter(n => allCategories().indexOf(n.category) === -1);
   if ((others.length || otherNeeds.length) && !f.cat) {
     html += groupHead("Uncategorised", others.length, otherNeeds.length);
     others.forEach(i => { html += itemRow(i); });
@@ -708,10 +812,13 @@ function itemRow(i) {
   if (i.season && i.season !== "All-season") meta.push(esc(i.season));
   const metaHtml = meta.length ? '<div class="meta">' + meta.join(' <span class="sep">·</span> ') + "</div>" : "";
   const donatePill = donate ? '<span class="pill donate">donate</span>' : "";
+  const iurl = safeUrl(i.url);
+  const ilink = iurl ? '<a class="act" href="' + esc(iurl) + '" target="_blank" rel="noopener" title="Open link"><svg class="svg sm" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></a>' : "";
   return '<div class="row' + (donate ? " donate" : "") + '" data-id="' + i.id + '">' +
-    colourSwatch(i.colour) +
+    (i.image ? '<span class="rthumb">' + thumbImg(i.image) + "</span>" : colourSwatch(i.colour)) +
     '<div class="main"><div class="name">' + esc(i.name) + " " + donatePill + "</div>" + metaHtml + "</div>" +
     '<div class="acts">' +
+      ilink +
       '<button class="act donate' + (donate ? " on" : "") + '" data-action="toggle-donate" data-id="' + i.id + '" title="' + (donate ? "Keep this" : "Mark to donate") + '"><svg class="svg sm" viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 1 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"/></svg></button>' +
       '<button class="act" data-action="edit" data-type="item" data-id="' + i.id + '" title="Edit"><svg class="svg sm" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></button>' +
       '<button class="act del" data-action="delete" data-type="item" data-id="' + i.id + '" title="Delete"><svg class="svg sm" viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg></button>' +
@@ -728,6 +835,12 @@ function renderWishlist() {
         '<button type="button" data-t="need" class="' + (addNeed ? "on" : "") + '">Gap</button>' +
         '<button type="button" data-t="consider" class="' + (addNeed ? "" : "on") + '">Option</button>' +
       "</div>" +
+      (addNeed ? "" :
+        '<div class="linkrow">' +
+          '<input class="grow" id="wish-link" placeholder="🔗 Paste a product link to auto-fill name &amp; image (optional)" autocomplete="off">' +
+          '<button type="button" class="btn ghost sm" id="wish-fetch" data-action="fetch-link" data-for="wish">Fetch</button>' +
+          '<div class="thumb-preview" id="wish-thumb"></div>' +
+        "</div>") +
       '<input class="grow" id="wish-name" placeholder="' + (addNeed ? "What are you missing? (e.g. a versatile navy jumper)" : "An option you're weighing (e.g. Uniqlo merino crew)") + '" autocomplete="off" required>' +
       catSelect("wish-cat", "", { placeholder: "Category…" }) +
       '<select id="wish-pri" style="width:auto;' + (addNeed ? "" : "display:none") + '">' + opts(PRIORITIES, "Medium") + "</select>" +
@@ -780,7 +893,7 @@ function fillWishlist() {
   const counts = {};
   state.needs.filter(n => !n.done).forEach(n => { counts[n.category] = (counts[n.category] || 0) + 1; });
   state.consider.filter(c => c.status !== "Bought" && c.status !== "Passed").forEach(c => { counts[c.category] = (counts[c.category] || 0) + 1; });
-  const catList = CATEGORIES.filter(c => counts[c]).sort((a, b) => counts[b] - counts[a]);
+  const catList = allCategories().filter(c => counts[c]).sort((a, b) => counts[b] - counts[a]);
   const max = catList.length ? counts[catList[0]] : 1;
   const chipsEl = document.getElementById("wish-cats");
   if (chipsEl) {
@@ -816,7 +929,7 @@ function fillWishlist() {
 
   // group by category (canonical order): gaps first, then options
   let html = "";
-  const order = w.cat ? [w.cat] : CATEGORIES;
+  const order = w.cat ? [w.cat] : allCategories();
   order.forEach(cat => {
     const nC = needs.filter(n => n.category === cat).sort(sortNeed);
     const oC = options.filter(c => c.category === cat).sort(sortOpt);
@@ -825,8 +938,8 @@ function fillWishlist() {
     nC.forEach(n => { html += wishNeedRow(n); });
     oC.forEach(c => { html += optionRow(c); });
   });
-  const nOther = needs.filter(n => CATEGORIES.indexOf(n.category) === -1).sort(sortNeed);
-  const oOther = options.filter(c => CATEGORIES.indexOf(c.category) === -1).sort(sortOpt);
+  const nOther = needs.filter(n => allCategories().indexOf(n.category) === -1).sort(sortNeed);
+  const oOther = options.filter(c => allCategories().indexOf(c.category) === -1).sort(sortOpt);
   if ((nOther.length || oOther.length) && !w.cat) {
     html += wishGroupHead("Uncategorised", nOther.length, oOther.length, owned);
     nOther.forEach(n => { html += wishNeedRow(n); });
@@ -867,7 +980,9 @@ function optionRow(c) {
   const priceHtml = (Number(c.price) > 0) ? '<span class="row-price">' + money(c.price) + "</span>" : "";
   const closed = st === "Bought" || st === "Passed";
   return '<div class="row option' + (closed ? " closed" : "") + '" data-id="' + c.id + '">' +
-    '<span class="opt-dot ' + st.toLowerCase() + '" title="' + st + '"></span>' +
+    (c.image
+      ? '<span class="rthumb withdot">' + thumbImg(c.image) + '<span class="opt-dot ' + st.toLowerCase() + '" title="' + st + '"></span></span>'
+      : '<span class="opt-dot ' + st.toLowerCase() + '" title="' + st + '"></span>') +
     '<div class="main"><div class="name">' + esc(c.name) + "</div>" +
       (c.notes ? '<div class="meta">' + esc(c.notes) + "</div>" : "") + "</div>" +
     priceHtml +
@@ -917,7 +1032,7 @@ function openEditor(type, id) {
     body =
       fieldText("e-name", "Name", rec.name) +
       '<div class="field-row">' +
-        fieldSelect("e-cat", "Category", CATEGORIES, rec.category) +
+        fieldSelect("e-cat", "Category", allCategories(), rec.category, true) +
         fieldText("e-colour", "Colour", rec.colour) +
       "</div>" +
       '<div class="field-row">' +
@@ -925,13 +1040,14 @@ function openEditor(type, id) {
         fieldSelect("e-season", "Season", SEASONS, rec.season || "All-season") +
       "</div>" +
       '<div class="field"><label>Status</label><div class="seg" id="e-status"><button type="button" data-v="keep" class="' + (rec.status!=="donate"?"on":"") + '">Keeping</button><button type="button" data-v="donate" class="' + (rec.status==="donate"?"on":"") + '">To donate</button></div></div>' +
+      linkImageFields(rec) +
       fieldArea("e-notes", "Notes", rec.notes);
   } else if (type === "need") {
     title = "Edit need";
     body =
       fieldText("e-name", "What you need", rec.name) +
       '<div class="field-row">' +
-        fieldSelect("e-cat", "Category", CATEGORIES, rec.category) +
+        fieldSelect("e-cat", "Category", allCategories(), rec.category, true) +
         fieldSelect("e-pri", "Priority", PRIORITIES, rec.priority || "Medium") +
       "</div>" +
       fieldArea("e-notes", "Notes", rec.notes);
@@ -940,14 +1056,14 @@ function openEditor(type, id) {
     body =
       fieldText("e-name", "Name", rec.name) +
       '<div class="field-row">' +
-        fieldSelect("e-cat", "Category", CATEGORIES, rec.category) +
+        fieldSelect("e-cat", "Category", allCategories(), rec.category, true) +
         fieldText("e-price", "Price", rec.price) +
       "</div>" +
-      fieldText("e-url", "Link (URL)", rec.url) +
       '<div class="field-row">' +
         fieldSelect("e-pri", "Priority", PRIORITIES, rec.priority || "Medium") +
         fieldSelect("e-status", "Status", CONSIDER_STATUS, rec.status || "Considering") +
       "</div>" +
+      linkImageFields(rec) +
       fieldArea("e-notes", "Notes", rec.notes);
   }
 
@@ -958,6 +1074,7 @@ function openEditor(type, id) {
         '<div class="modal-foot"><button type="button" class="btn ghost" data-action="modal-cancel">Cancel</button><button type="submit" class="btn">Save changes</button></div>' +
       "</form>" +
     "</div></div>";
+  renderEditPreview();
   setTimeout(() => { const el = document.getElementById("e-name"); if (el) el.focus(); }, 30);
 }
 function closeEditor() { document.getElementById("modal-root").innerHTML = ""; }
@@ -968,8 +1085,19 @@ function fieldText(id, label, val) {
 function fieldArea(id, label, val) {
   return '<div class="field"><label>' + esc(label) + '</label><textarea id="' + id + '" placeholder="Optional…">' + esc(val) + "</textarea></div>";
 }
-function fieldSelect(id, label, list, sel) {
-  return '<div class="field"><label>' + esc(label) + '</label><select id="' + id + '">' + opts(list, sel) + "</select></div>";
+function fieldSelect(id, label, list, sel, addNew) {
+  return '<div class="field"><label>' + esc(label) + '</label><select id="' + id + '">' + opts(list, sel) + (addNew ? '<option value="__new__">+ New category…</option>' : "") + "</select></div>";
+}
+function linkImageFields(rec) {
+  return '<div class="field"><label>Link (URL)</label>' +
+      '<div class="img-field">' +
+        '<input id="e-url" value="' + esc(rec.url || "") + '" autocomplete="off" placeholder="https://…">' +
+        '<button type="button" class="btn ghost sm" id="e-fetch" data-action="fetch-link" data-for="e" title="Pull image &amp; title from the link">Pull</button>' +
+      "</div></div>" +
+    '<div class="field"><label>Image</label>' +
+      '<input id="e-image" value="' + esc(rec.image || "") + '" autocomplete="off" placeholder="…or paste an image URL">' +
+      '<div class="thumb-preview edit" id="e-thumb"></div>' +
+    "</div>";
 }
 
 function saveEditor(form) {
@@ -978,12 +1106,14 @@ function saveEditor(form) {
   if (!rec) { closeEditor(); return; }
   const v = sel => { const el = document.getElementById(sel); return el ? el.value.trim() : ""; };
   rec.name = v("e-name") || rec.name;
-  rec.category = v("e-cat");
+  { const ec = v("e-cat"); if (ec && ec !== "__new__") rec.category = ec; }
   rec.notes = (document.getElementById("e-notes") || {}).value || "";
   if (type === "item") {
     rec.colour = v("e-colour");
     rec.brand = v("e-brand");
     rec.season = v("e-season");
+    rec.url = v("e-url");
+    rec.image = v("e-image");
     const segOn = document.querySelector("#e-status button.on");
     rec.status = segOn ? segOn.dataset.v : (rec.status || "keep");
   } else if (type === "need") {
@@ -991,6 +1121,7 @@ function saveEditor(form) {
   } else {
     rec.price = parsePrice(v("e-price"));
     rec.url = v("e-url");
+    rec.image = v("e-image");
     rec.priority = v("e-pri");
     rec.status = v("e-status");
   }
@@ -1002,25 +1133,86 @@ function parsePrice(s) {
   return isFinite(n) ? n : "";
 }
 
+/* ---------- Add by link: pull image + title via microlink (graceful fallback) ---------- */
+let pendingImg = { inv: "", wish: "" };
+function thumbImg(src) {
+  return '<img src="' + esc(src) + '" alt="" loading="lazy" referrerpolicy="no-referrer">';
+}
+async function fetchLinkMeta(rawUrl) {
+  const url = safeUrl(rawUrl);
+  if (!url) throw new Error("bad url");
+  const api = "https://api.microlink.io/?url=" + encodeURIComponent(url) + "&audio=false&video=false";
+  const res = await fetch(api);
+  if (!res.ok) throw new Error("http " + res.status);
+  const j = await res.json();
+  if (j.status !== "success" || !j.data) throw new Error("no data");
+  const img = (j.data.image && j.data.image.url) || (j.data.logo && j.data.logo.url) || "";
+  return { title: (j.data.title || "").trim(), image: img };
+}
+function paintPreview(wrapId, src, onClear) {
+  const wrap = document.getElementById(wrapId);
+  if (!wrap) return;
+  wrap.innerHTML = ""; wrap.classList.toggle("has", !!src);
+  if (src) {
+    const im = document.createElement("img");
+    im.src = src; im.alt = ""; im.referrerPolicy = "no-referrer";
+    im.onerror = () => { wrap.innerHTML = ""; wrap.classList.remove("has"); if (onClear) onClear(); };
+    wrap.appendChild(im);
+  }
+}
+function renderThumbPreview(prefix) { paintPreview(prefix + "-thumb", pendingImg[prefix], () => { pendingImg[prefix] = ""; }); }
+function renderEditPreview() { const el = document.getElementById("e-image"); paintPreview("e-thumb", el ? (el.value || "").trim() : ""); }
+async function fetchLinkInto(prefix) {
+  const linkEl = document.getElementById(prefix === "e" ? "e-url" : prefix + "-link");
+  const btn = document.getElementById(prefix + "-fetch");
+  if (!linkEl) return;
+  const raw = (linkEl.value || "").trim();
+  if (!raw) { showToast("Paste a link first", null); return; }
+  if (!safeUrl(raw)) { showToast("That doesn’t look like a valid link", null); return; }
+  if (btn) { btn.disabled = true; btn.dataset.prev = btn.textContent; btn.textContent = "…"; }
+  try {
+    const meta = await fetchLinkMeta(raw);
+    const nameEl = document.getElementById(prefix === "e" ? "e-name" : prefix + "-name");
+    if (nameEl && !nameEl.value.trim() && meta.title) nameEl.value = meta.title;
+    if (prefix === "e") {
+      const imgEl = document.getElementById("e-image");
+      if (imgEl && meta.image) imgEl.value = meta.image;
+      renderEditPreview();
+    } else {
+      pendingImg[prefix] = meta.image || "";
+      renderThumbPreview(prefix);
+    }
+    if (meta.image) showToast("Pulled image & title ✓", null);
+    else if (meta.title) showToast("Pulled the title (no image found) ✓", null);
+    else showToast("Reached the link, but found no image or title", null);
+  } catch (err) {
+    showToast("Couldn’t fetch that link — add details manually", null);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = btn.dataset.prev || "Fetch"; }
+  }
+}
+
 /* ---------- Actions ---------- */
 function addItem() {
   const name = val("inv-name"); if (!name) return;
-  state.items.push({ id: uid(), name, category: val("inv-cat") || "Other", colour: val("inv-colour"), brand: "", season: "All-season", status: "keep", notes: "", createdAt: Date.now() });
+  state.items.push({ id: uid(), name, category: cleanCat(val("inv-cat")), colour: val("inv-colour"), brand: "", season: "All-season", status: "keep", url: val("inv-link"), image: pendingImg.inv || "", notes: "", createdAt: Date.now() });
   save();
-  setVal("inv-name", ""); setVal("inv-colour", "");
+  setVal("inv-name", ""); setVal("inv-colour", ""); setVal("inv-link", "");
+  pendingImg.inv = ""; renderThumbPreview("inv");
   refresh();
   focus("inv-name");
 }
 function addWish() {
   const name = val("wish-name"); if (!name) return;
-  const cat = val("wish-cat") || "Other";
+  const cat = cleanCat(val("wish-cat"));
   if (ui.wishlist.addType === "need") {
     state.needs.push({ id: uid(), name, category: cat, priority: val("wish-pri") || "Medium", notes: "", done: false, createdAt: Date.now() });
   } else {
-    state.consider.push({ id: uid(), name, category: cat, price: parsePrice(val("wish-price")), url: "", priority: "Medium", status: "Considering", notes: "", createdAt: Date.now() });
+    state.consider.push({ id: uid(), name, category: cat, price: parsePrice(val("wish-price")), url: val("wish-link"), image: pendingImg.wish || "", priority: "Medium", status: "Considering", notes: "", createdAt: Date.now() });
   }
   save();
-  setVal("wish-name", ""); setVal("wish-price", "");
+  setVal("wish-name", ""); setVal("wish-price", ""); setVal("wish-link", "");
+  pendingImg.wish = ""; renderThumbPreview("wish");
   refresh();
   focus("wish-name");
 }
@@ -1117,6 +1309,16 @@ document.addEventListener("submit", e => {
   if (f.id === "form-inv") { e.preventDefault(); addItem(); }
   else if (f.id === "form-wish") { e.preventDefault(); addWish(); }
   else if (f.id === "form-edit") { e.preventDefault(); saveEditor(f); }
+  else if (f.id === "form-cat") {
+    e.preventDefault();
+    const inp = document.getElementById("cat-new");
+    const v = (inp.value || "").trim();
+    if (v) {
+      if (addCustomCategory(v)) { renderMain(); renderCatManager(); }
+      else showToast("“" + v + "” already exists", null);
+    }
+    inp.value = ""; inp.focus();
+  }
 });
 
 document.addEventListener("click", e => {
@@ -1139,8 +1341,8 @@ document.addEventListener("click", e => {
 
   const actEl = e.target.closest("[data-action]");
   if (!actEl) {
-    // close menu when clicking elsewhere
-    document.getElementById("menu").classList.remove("open");
+    // close the settings menu only when clicking outside it (not on the menu's own fields/buttons)
+    if (!e.target.closest("#menu") && !e.target.closest("#menu-toggle")) document.getElementById("menu").classList.remove("open");
     return;
   }
   const action = actEl.dataset.action;
@@ -1153,6 +1355,8 @@ document.addEventListener("click", e => {
     case "toggle-showneeds": ui.inv.showNeeds = !ui.inv.showNeeds; renderInventory(); break;
     case "wish-filter-cat": ui.wishlist.cat = (ui.wishlist.cat === actEl.dataset.cat) ? "" : actEl.dataset.cat; fillWishlist(); break;
     case "toggle-showclosed": ui.wishlist.showClosed = !ui.wishlist.showClosed; renderWishlist(); break;
+    case "rm-cat": removeCustomCategory(actEl.dataset.cat); break;
+    case "fetch-link": fetchLinkInto(actEl.dataset.for); break;
     case "toggle-donate": { const i = find("item", id); if (i) { i.status = i.status === "donate" ? "keep" : "donate"; save(); refresh(); } break; }
     case "toggle-need": { const n = find("need", id); if (n) { n.done = !n.done; save(); refresh(); } break; }
     case "need-to-consider": needToConsider(id); break;
@@ -1169,6 +1373,7 @@ document.addEventListener("click", e => {
 
 document.addEventListener("change", e => {
   const t = e.target;
+  if ((t.id === "inv-cat" || t.id === "wish-cat" || t.id === "e-cat") && t.value === "__new__") { handleNewCategory(t); return; }
   if (t.id === "inv-status") { ui.inv.status = t.value; fillInventory(); }
   else if (t.id === "inv-sort") { ui.inv.sort = t.value; fillInventory(); }
   else if (t.id === "wish-sort") { ui.wishlist.sort = t.value; fillWishlist(); }
@@ -1182,15 +1387,27 @@ document.addEventListener("change", e => {
 document.addEventListener("input", e => {
   if (e.target.id === "inv-q") { ui.inv.q = e.target.value; fillInventory(); }
   else if (e.target.id === "wish-q") { ui.wishlist.q = e.target.value; fillWishlist(); }
+  else if (e.target.id === "inv-link") { pendingImg.inv = ""; renderThumbPreview("inv"); }
+  else if (e.target.id === "wish-link") { pendingImg.wish = ""; renderThumbPreview("wish"); }
+  else if (e.target.id === "e-image") { renderEditPreview(); }
 });
+
+// A pulled/pasted image that fails to load falls back gracefully (don't show a broken icon).
+document.addEventListener("error", e => {
+  const t = e.target;
+  if (t && t.tagName === "IMG") { const w = t.closest(".rthumb"); if (w) w.classList.add("broken"); }
+}, true);
 
 document.getElementById("menu-toggle").addEventListener("click", e => {
   e.stopPropagation();
-  document.getElementById("menu").classList.toggle("open");
+  const m = document.getElementById("menu");
+  m.classList.toggle("open");
+  if (m.classList.contains("open")) renderCatManager();
 });
 
 document.addEventListener("keydown", e => {
   if (e.key === "Escape") { closeEditor(); document.getElementById("menu").classList.remove("open"); hideToast(); return; }
+  if (e.key === "Enter" && (e.target.id === "inv-link" || e.target.id === "wish-link")) { e.preventDefault(); fetchLinkInto(e.target.id === "inv-link" ? "inv" : "wish"); return; }
   const tag = (e.target.tagName || "").toLowerCase();
   if (tag === "input" || tag === "textarea" || tag === "select" || e.target.isContentEditable) return;
   if (e.metaKey || e.ctrlKey || e.altKey) return;
@@ -1203,6 +1420,7 @@ document.addEventListener("keydown", e => {
 
 /* ---------- Init ---------- */
 document.getElementById("cur-input").value = state.settings.currency || "£";
+renderCatManager();
 renderAll();
 </script>
 </body>
