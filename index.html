@@ -154,18 +154,22 @@ header {
   padding: 12px; margin-bottom: 16px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center;
 }
 .quickbar .grow { flex: 1; min-width: 150px; }
-.linkrow { display: flex; gap: 8px; align-items: center; flex-basis: 100%; }
+.linkrow { display: flex; gap: 8px; align-items: center; flex-basis: 100%; flex-wrap: wrap; }
 .linkrow .grow { min-width: 120px; }
-.thumb-preview { width: 0; height: 34px; border-radius: 7px; overflow: hidden; flex-shrink: 0; transition: width .15s; }
-.thumb-preview.has { width: 34px; border: 1px solid var(--border2); }
+.thumb-preview { width: 0; height: 44px; border-radius: 8px; overflow: hidden; flex-shrink: 0; transition: width .15s; }
+.thumb-preview.has { width: 44px; border: 1px solid var(--border2); cursor: zoom-in; }
 .thumb-preview img, .rthumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.thumb-preview.edit { width: 88px; height: 88px; margin-top: 8px; background: var(--surface3); }
+.thumb-preview.edit { width: 128px; height: 128px; margin-top: 8px; background: var(--surface3); }
 .thumb-preview.edit:not(.has) { display: none; }
 .img-field { display: flex; gap: 6px; align-items: center; }
 .img-field input { flex: 1; min-width: 0; }
-.rthumb { width: 34px; height: 34px; border-radius: 7px; overflow: hidden; flex-shrink: 0; border: 1px solid var(--border2); background: var(--surface3); position: relative; }
+.rthumb { width: 48px; height: 48px; border-radius: 8px; overflow: hidden; flex-shrink: 0; border: 1px solid var(--border2); background: var(--surface3); position: relative; cursor: zoom-in; }
 .rthumb.broken img { display: none; }
-.rthumb.withdot .opt-dot { position: absolute; right: -3px; bottom: -3px; width: 10px; height: 10px; box-shadow: 0 0 0 2px var(--surface); }
+.rthumb.withdot .opt-dot { position: absolute; right: -3px; bottom: -3px; width: 11px; height: 11px; box-shadow: 0 0 0 2px var(--surface); }
+/* Lightbox (click any image to enlarge) */
+.lightbox { position: fixed; inset: 0; background: rgba(0,0,0,0.86); backdrop-filter: blur(4px); z-index: 90; display: none; align-items: center; justify-content: center; padding: 24px; cursor: zoom-out; }
+.lightbox.show { display: flex; }
+.lightbox img { max-width: 92vw; max-height: 88vh; border-radius: 10px; box-shadow: 0 24px 80px rgba(0,0,0,0.6); object-fit: contain; }
 input, select, textarea {
   background: var(--surface2); border: 1px solid var(--border2); color: var(--text);
   border-radius: var(--radius-sm); padding: 9px 11px; font-size: 13px; font-family: var(--sans);
@@ -268,6 +272,7 @@ select { cursor: pointer; appearance: none;
   font-size: 10.5px; font-family: var(--mono); padding: 2px 8px; border-radius: 20px;
   border: 1px solid var(--border2); color: var(--muted2); white-space: nowrap; letter-spacing: 0.01em;
 }
+.qty { font-family: var(--mono); font-size: 11px; color: var(--accent); background: var(--accent-dim); border: 1px solid var(--accent-border); border-radius: 20px; padding: 1px 7px; vertical-align: middle; }
 .pill.high { color: var(--red); border-color: var(--red-border); background: var(--red-dim); }
 .pill.medium { color: var(--amber); border-color: var(--amber-border); background: var(--amber-dim); }
 .pill.low { color: var(--muted2); }
@@ -454,6 +459,7 @@ textarea { resize: vertical; min-height: 60px; }
 <input type="file" id="file-input" accept="application/json" style="display:none">
 <div id="modal-root"></div>
 <div id="toast" class="toast"></div>
+<div id="lightbox" class="lightbox"></div>
 
 <script>
 "use strict";
@@ -518,7 +524,15 @@ function load() {
   catch (e) { console.warn("load failed", e); }
   return blank();
 }
-function save() { try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch (e) { console.warn("save failed", e); } }
+function save() {
+  try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); }
+  catch (e) {
+    console.warn("save failed", e);
+    if (e && (e.name === "QuotaExceededError" || /quota/i.test(String(e)))) {
+      try { showToast("Storage is full — remove some uploaded images, or export a backup", null); } catch (_) {}
+    }
+  }
+}
 
 let state = load();
 
@@ -670,7 +684,7 @@ function renderStats() {
   const shortlistSum = state.consider.filter(c => c.status === "Shortlisted").reduce((a, c) => a + (Number(c.price) || 0), 0);
 
   document.getElementById("stats").innerHTML =
-    stat("Items owned", items.length, "") +
+    stat("Items owned", items.reduce((a, i) => a + qtyOf(i), 0), "") +
     stat("To donate", donate, donate ? "amber" : "") +
     stat("Needs open", needsOpen, needsOpen ? "blue" : "") +
     stat("Considering", considering, "") +
@@ -705,11 +719,14 @@ function renderInventory() {
       '<div class="linkrow">' +
         '<input class="grow" id="inv-link" placeholder="🔗 Paste a product link to auto-fill name &amp; image (optional)" autocomplete="off">' +
         '<button type="button" class="btn ghost sm" id="inv-fetch" data-action="fetch-link" data-for="inv">Fetch</button>' +
+        '<button type="button" class="btn ghost sm" data-action="upload-img" data-for="inv" title="Upload an image from your device">Upload</button>' +
         '<div class="thumb-preview" id="inv-thumb"></div>' +
       "</div>" +
       '<input class="grow" id="inv-name" placeholder="Item name (e.g. Oxford shirt)" autocomplete="off" required>' +
       catSelect("inv-cat", "", { placeholder: "Category…" }) +
-      '<input id="inv-colour" placeholder="Colour" autocomplete="off" style="width:120px">' +
+      '<input id="inv-colour" placeholder="Colour" autocomplete="off" style="width:110px">' +
+      '<input id="inv-brand" placeholder="Brand" autocomplete="off" style="width:110px">' +
+      '<input id="inv-qty" type="number" min="1" step="1" value="1" title="Quantity" autocomplete="off" style="width:62px">' +
       '<button class="btn" type="submit"><svg class="svg sm" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Add item</button>' +
     "</form>" +
     '<div class="cats" id="inv-cats"></div>' +
@@ -829,8 +846,10 @@ function inventoryNeedRow(n) {
     "</div></div>";
 }
 
+function qtyOf(rec) { const n = parseInt(rec && rec.quantity, 10); return n >= 1 ? n : 1; }
 function itemRow(i) {
   const donate = i.status === "donate";
+  const qn = qtyOf(i);
   const meta = [];
   if (i.brand) meta.push(esc(i.brand));
   if (i.colour) meta.push(esc(i.colour));
@@ -841,7 +860,7 @@ function itemRow(i) {
   const ilink = iurl ? '<a class="act" href="' + esc(iurl) + '" target="_blank" rel="noopener" title="Open link"><svg class="svg sm" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></a>' : "";
   return '<div class="row' + (donate ? " donate" : "") + '" data-id="' + i.id + '">' +
     (i.image ? '<span class="rthumb">' + thumbImg(i.image) + "</span>" : colourSwatch(i.colour)) +
-    '<div class="main"><div class="name">' + esc(i.name) + " " + donatePill + "</div>" + metaHtml + "</div>" +
+    '<div class="main"><div class="name">' + esc(i.name) + " " + (qn > 1 ? '<span class="qty">×' + qn + "</span> " : "") + donatePill + "</div>" + metaHtml + "</div>" +
     '<div class="acts">' +
       ilink +
       '<button class="act donate' + (donate ? " on" : "") + '" data-action="toggle-donate" data-id="' + i.id + '" title="' + (donate ? "Keep this" : "Mark to donate") + '"><svg class="svg sm" viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 1 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"/></svg></button>' +
@@ -864,12 +883,14 @@ function renderWishlist() {
         '<div class="linkrow">' +
           '<input class="grow" id="wish-link" placeholder="🔗 Paste a product link to auto-fill name &amp; image (optional)" autocomplete="off">' +
           '<button type="button" class="btn ghost sm" id="wish-fetch" data-action="fetch-link" data-for="wish">Fetch</button>' +
+          '<button type="button" class="btn ghost sm" data-action="upload-img" data-for="wish" title="Upload an image from your device">Upload</button>' +
           '<div class="thumb-preview" id="wish-thumb"></div>' +
         "</div>") +
       '<input class="grow" id="wish-name" placeholder="' + (addNeed ? "What are you missing? (e.g. a versatile navy jumper)" : "An option you're weighing (e.g. Uniqlo merino crew)") + '" autocomplete="off" required>' +
       catSelect("wish-cat", "", { placeholder: "Category…" }) +
       '<select id="wish-pri" style="width:auto;' + (addNeed ? "" : "display:none") + '">' + opts(PRIORITIES, "Medium") + "</select>" +
       '<input id="wish-price" placeholder="Price" inputmode="decimal" autocomplete="off" style="width:90px;' + (addNeed ? "display:none" : "") + '">' +
+      '<input id="wish-brand" placeholder="Brand" autocomplete="off" style="width:110px;' + (addNeed ? "display:none" : "") + '">' +
       '<button class="btn" type="submit"><svg class="svg sm" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>' + (addNeed ? "Add gap" : "Add option") + "</button>" +
     "</form>" +
     '<div class="cats" id="wish-cats"></div>' +
@@ -1003,13 +1024,14 @@ function optionRow(c) {
   const url = safeUrl(c.url);
   const link = url ? '<a class="act" href="' + esc(url) + '" target="_blank" rel="noopener" title="View ' + esc(c.name) + '"><svg class="svg sm" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></a>' : "";
   const priceHtml = (Number(c.price) > 0) ? '<span class="row-price">' + money(c.price) + "</span>" : "";
+  const cmeta = [c.brand, c.notes].filter(Boolean).map(esc).join(' <span class="sep">·</span> ');
   const closed = st === "Bought" || st === "Passed";
   return '<div class="row option' + (closed ? " closed" : "") + '" data-id="' + c.id + '">' +
     (c.image
       ? '<span class="rthumb withdot">' + thumbImg(c.image) + '<span class="opt-dot ' + st.toLowerCase() + '" title="' + st + '"></span></span>'
       : '<span class="opt-dot ' + st.toLowerCase() + '" title="' + st + '"></span>') +
     '<div class="main"><div class="name">' + esc(c.name) + "</div>" +
-      (c.notes ? '<div class="meta">' + esc(c.notes) + "</div>" : "") + "</div>" +
+      (cmeta ? '<div class="meta">' + cmeta + "</div>" : "") + "</div>" +
     priceHtml +
     '<select class="opt-status" data-action="consider-status" data-id="' + c.id + '">' + opts(CONSIDER_STATUS, st) + "</select>" +
     '<span class="pill ' + priClass(c.priority) + '">' + esc(c.priority || "Low") + "</span>" +
@@ -1064,6 +1086,7 @@ function openEditor(type, id) {
         fieldText("e-brand", "Brand", rec.brand) +
         fieldSelect("e-season", "Season", SEASONS, rec.season || "All-season") +
       "</div>" +
+      '<div class="field-row">' + fieldNum("e-qty", "Quantity", qtyOf(rec)) + '<div class="field"></div>' + "</div>" +
       '<div class="field"><label>Status</label><div class="seg" id="e-status"><button type="button" data-v="keep" class="' + (rec.status!=="donate"?"on":"") + '">Keeping</button><button type="button" data-v="donate" class="' + (rec.status==="donate"?"on":"") + '">To donate</button></div></div>' +
       linkImageFields(rec) +
       fieldArea("e-notes", "Notes", rec.notes);
@@ -1080,6 +1103,7 @@ function openEditor(type, id) {
     title = "Edit option";
     body =
       fieldText("e-name", "Name", rec.name) +
+      fieldText("e-brand", "Brand", rec.brand) +
       '<div class="field-row">' +
         fieldSelect("e-cat", "Category", allCategories(), rec.category, true) +
         fieldText("e-price", "Price", rec.price) +
@@ -1107,6 +1131,9 @@ function closeEditor() { document.getElementById("modal-root").innerHTML = ""; }
 function fieldText(id, label, val) {
   return '<div class="field"><label>' + esc(label) + '</label><input id="' + id + '" value="' + esc(val) + '" autocomplete="off"></div>';
 }
+function fieldNum(id, label, val) {
+  return '<div class="field"><label>' + esc(label) + '</label><input id="' + id + '" type="number" min="1" step="1" value="' + esc(val) + '" autocomplete="off" style="width:90px"></div>';
+}
 function fieldArea(id, label, val) {
   return '<div class="field"><label>' + esc(label) + '</label><textarea id="' + id + '" placeholder="Optional…">' + esc(val) + "</textarea></div>";
 }
@@ -1120,7 +1147,10 @@ function linkImageFields(rec) {
         '<button type="button" class="btn ghost sm" id="e-fetch" data-action="fetch-link" data-for="e" title="Pull image &amp; title from the link">Pull</button>' +
       "</div></div>" +
     '<div class="field"><label>Image</label>' +
-      '<input id="e-image" value="' + esc(rec.image || "") + '" autocomplete="off" placeholder="…or paste an image URL">' +
+      '<div class="img-field">' +
+        '<input id="e-image" value="' + esc(rec.image || "") + '" autocomplete="off" placeholder="Upload, paste, or enter an image URL">' +
+        '<button type="button" class="btn ghost sm" data-action="upload-img" data-for="e" title="Upload an image from your device">Upload</button>' +
+      "</div>" +
       '<div class="thumb-preview edit" id="e-thumb"></div>' +
     "</div>";
 }
@@ -1137,6 +1167,7 @@ function saveEditor(form) {
     rec.colour = v("e-colour");
     rec.brand = v("e-brand");
     rec.season = v("e-season");
+    rec.quantity = Math.max(1, parseInt(v("e-qty"), 10) || 1);
     rec.url = v("e-url");
     rec.image = v("e-image");
     const segOn = document.querySelector("#e-status button.on");
@@ -1144,6 +1175,7 @@ function saveEditor(form) {
   } else if (type === "need") {
     rec.priority = v("e-pri");
   } else {
+    rec.brand = v("e-brand");
     rec.price = parsePrice(v("e-price"));
     rec.url = v("e-url");
     rec.image = v("e-image");
@@ -1166,7 +1198,7 @@ function thumbImg(src) {
 async function fetchLinkMeta(rawUrl) {
   const url = safeUrl(rawUrl);
   if (!url) throw new Error("bad url");
-  let title = "", image = "";
+  let title = "", image = "", brand = "";
   // 1) microlink — clean metadata, but its free tier can't read antibot-protected shops
   try {
     const res = await fetch("https://api.microlink.io/?url=" + encodeURIComponent(url) + "&audio=false&video=false");
@@ -1175,6 +1207,7 @@ async function fetchLinkMeta(rawUrl) {
       if (j && j.status === "success" && j.data) {
         image = (j.data.image && j.data.image.url) || (j.data.logo && j.data.logo.url) || "";
         title = (j.data.title || "").trim();
+        brand = (j.data.publisher || j.data.author || "").trim();
       }
     }
   } catch (e) { /* fall through to the proxy */ }
@@ -1184,12 +1217,13 @@ async function fetchLinkMeta(rawUrl) {
       const m = await fetchMetaViaProxy(url);
       if (m.image) image = m.image;
       if (!title && m.title) title = m.title;
+      if (m.brand) brand = m.brand;
     } catch (e) { /* both paths failed */ }
   }
   if (image.indexOf("//") === 0) image = "https:" + image;
   if (image.indexOf("http://") === 0) image = "https://" + image.slice(7); // avoid mixed-content on HTTPS hosting
   if (!image && !title) throw new Error("no metadata");
-  return { title: title, image: image };
+  return { title: title, image: image, brand: brand };
 }
 async function fetchMetaViaProxy(url) {
   const res = await fetch("https://corsproxy.io/?url=" + encodeURIComponent(url));
@@ -1204,7 +1238,10 @@ async function fetchMetaViaProxy(url) {
   let image = meta("og:image") || meta("og:image:secure_url") || meta("twitter:image") || meta("twitter:image:src") || "";
   let title = meta("og:title") || meta("twitter:title") || "";
   if (!title) { const t = html.match(/<title[^>]*>([^<]*)<\/title>/i); title = t ? t[1] : ""; }
-  return { title: decodeEntities(title.trim()), image: decodeEntities(image.trim()) };
+  let brand = meta("og:brand") || meta("product:brand") || "";
+  if (!brand) { const bm = html.match(/"brand"\s*:\s*\{[^{}]*?"name"\s*:\s*"([^"]+)"/i) || html.match(/"brand"\s*:\s*"([^"]+)"/i); if (bm) brand = bm[1]; }
+  if (!brand) brand = meta("og:site_name") || "";
+  return { title: decodeEntities(title.trim()), image: decodeEntities(image.trim()), brand: decodeEntities(brand.trim()) };
 }
 function decodeEntities(s) {
   if (!s || s.indexOf("&") === -1) return s || "";
@@ -1237,6 +1274,8 @@ async function fetchLinkInto(prefix) {
     const meta = await fetchLinkMeta(raw);
     const nameEl = document.getElementById(prefix === "e" ? "e-name" : prefix + "-name");
     if (nameEl && !nameEl.value.trim() && meta.title) nameEl.value = meta.title;
+    const brandEl = document.getElementById(prefix === "e" ? "e-brand" : prefix + "-brand");
+    if (brandEl && !brandEl.value.trim() && meta.brand) brandEl.value = meta.brand;
     if (prefix === "e") {
       const imgEl = document.getElementById("e-image");
       if (imgEl && meta.image) imgEl.value = meta.image;
@@ -1255,12 +1294,65 @@ async function fetchLinkInto(prefix) {
   }
 }
 
+/* ---------- Image upload (downscaled to a thumbnail so it fits in localStorage) ---------- */
+function pickImageFor(target) {
+  const inp = document.createElement("input");
+  inp.type = "file"; inp.accept = "image/*";
+  inp.onchange = () => { if (inp.files && inp.files[0]) handleImageFile(inp.files[0], target); };
+  inp.click();
+}
+function handleImageFile(file, target) {
+  fileToThumb(file, dataUrl => {
+    if (target === "e") { const el = document.getElementById("e-image"); if (el) { el.value = dataUrl; renderEditPreview(); } }
+    else { pendingImg[target] = dataUrl; renderThumbPreview(target); }
+    showToast("Image added ✓", null);
+  });
+}
+function fileToThumb(file, cb) {
+  if (!file || !/^image\//.test(file.type || "")) { showToast("That's not an image file", null); return; }
+  const reader = new FileReader();
+  reader.onerror = () => showToast("Couldn’t read that file", null);
+  reader.onload = e => {
+    const img = new Image();
+    img.onerror = () => showToast("Couldn’t read that image", null);
+    img.onload = () => {
+      const MAX = 768;
+      let w = img.naturalWidth || img.width, h = img.naturalHeight || img.height;
+      if (!w || !h) { showToast("Couldn’t read that image", null); return; }
+      if (w > MAX || h > MAX) { const s = MAX / Math.max(w, h); w = Math.round(w * s); h = Math.round(h * s); }
+      const canvas = document.createElement("canvas");
+      canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext("2d");
+      ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, w, h);
+      ctx.drawImage(img, 0, 0, w, h);
+      let dataUrl;
+      try { dataUrl = canvas.toDataURL("image/jpeg", 0.72); }
+      catch (err) { showToast("Couldn’t process that image", null); return; }
+      cb(dataUrl);
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+/* ---------- Lightbox (click any image to view it big) ---------- */
+function openLightbox(src) {
+  const lb = document.getElementById("lightbox");
+  if (!lb || !src) return;
+  lb.innerHTML = '<img src="' + esc(src) + '" alt="" referrerpolicy="no-referrer">';
+  lb.classList.add("show");
+}
+function closeLightbox() {
+  const lb = document.getElementById("lightbox");
+  if (lb) { lb.classList.remove("show"); lb.innerHTML = ""; }
+}
+
 /* ---------- Actions ---------- */
 function addItem() {
   const name = val("inv-name"); if (!name) return;
-  state.items.push({ id: uid(), name, category: cleanCat(val("inv-cat")), colour: val("inv-colour"), brand: "", season: "All-season", status: "keep", url: val("inv-link"), image: pendingImg.inv || "", notes: "", createdAt: Date.now() });
+  state.items.push({ id: uid(), name, category: cleanCat(val("inv-cat")), colour: val("inv-colour"), brand: val("inv-brand"), season: "All-season", status: "keep", quantity: Math.max(1, parseInt(val("inv-qty"), 10) || 1), url: val("inv-link"), image: pendingImg.inv || "", notes: "", createdAt: Date.now() });
   save();
-  setVal("inv-name", ""); setVal("inv-colour", ""); setVal("inv-link", "");
+  setVal("inv-name", ""); setVal("inv-colour", ""); setVal("inv-brand", ""); setVal("inv-qty", "1"); setVal("inv-link", "");
   pendingImg.inv = ""; renderThumbPreview("inv");
   refresh();
   focus("inv-name");
@@ -1271,10 +1363,10 @@ function addWish() {
   if (ui.wishlist.addType === "need") {
     state.needs.push({ id: uid(), name, category: cat, priority: val("wish-pri") || "Medium", notes: "", done: false, createdAt: Date.now() });
   } else {
-    state.consider.push({ id: uid(), name, category: cat, price: parsePrice(val("wish-price")), url: val("wish-link"), image: pendingImg.wish || "", priority: "Medium", status: "Considering", notes: "", createdAt: Date.now() });
+    state.consider.push({ id: uid(), name, category: cat, brand: val("wish-brand"), price: parsePrice(val("wish-price")), url: val("wish-link"), image: pendingImg.wish || "", priority: "Medium", status: "Considering", notes: "", createdAt: Date.now() });
   }
   save();
-  setVal("wish-name", ""); setVal("wish-price", ""); setVal("wish-link", "");
+  setVal("wish-name", ""); setVal("wish-price", ""); setVal("wish-brand", ""); setVal("wish-link", "");
   pendingImg.wish = ""; renderThumbPreview("wish");
   refresh();
   focus("wish-name");
@@ -1290,7 +1382,7 @@ function needToConsider(id) {
 }
 function considerToWardrobe(id) {
   const c = find("consider", id); if (!c) return;
-  state.items.push({ id: uid(), name: c.name, category: c.category, colour: "", brand: "", season: "All-season", status: "keep", notes: c.notes || "", createdAt: Date.now() });
+  state.items.push({ id: uid(), name: c.name, category: c.category, colour: "", brand: c.brand || "", season: "All-season", status: "keep", quantity: 1, url: c.url || "", image: c.image || "", notes: c.notes || "", createdAt: Date.now() });
   c.status = "Bought";
   save();
   ui.tab = "inventory";
@@ -1385,6 +1477,10 @@ document.addEventListener("submit", e => {
 });
 
 document.addEventListener("click", e => {
+  // Lightbox: clicking it closes; clicking any thumbnail opens it big.
+  if (e.target.closest("#lightbox")) { closeLightbox(); return; }
+  const thumbEl = e.target.closest(".rthumb, .thumb-preview");
+  if (thumbEl) { const im = thumbEl.querySelector("img"); if (im && im.getAttribute("src")) { openLightbox(im.getAttribute("src")); return; } }
   // Close the modal only when the backdrop itself is clicked (not children that bubble up).
   if (e.target.classList && e.target.classList.contains("modal-backdrop")) { closeEditor(); return; }
 
@@ -1421,6 +1517,7 @@ document.addEventListener("click", e => {
     case "rm-cat": removeCustomCategory(actEl.dataset.cat); break;
     case "rename-cat": renameCustomCategory(actEl.dataset.cat); break;
     case "fetch-link": fetchLinkInto(actEl.dataset.for); break;
+    case "upload-img": pickImageFor(actEl.dataset.for); break;
     case "toggle-donate": { const i = find("item", id); if (i) { i.status = i.status === "donate" ? "keep" : "donate"; save(); refresh(); } break; }
     case "toggle-need": { const n = find("need", id); if (n) { n.done = !n.done; save(); refresh(); } break; }
     case "need-to-consider": needToConsider(id); break;
@@ -1462,6 +1559,23 @@ document.addEventListener("error", e => {
   if (t && t.tagName === "IMG") { const w = t.closest(".rthumb"); if (w) w.classList.add("broken"); }
 }, true);
 
+// Paste an image from the clipboard straight into the active add form / editor.
+document.addEventListener("paste", e => {
+  const items = e.clipboardData && e.clipboardData.items;
+  if (!items) return;
+  for (let i = 0; i < items.length; i++) {
+    if (items[i].type && items[i].type.indexOf("image") === 0) {
+      const file = items[i].getAsFile();
+      if (!file) return;
+      const target = document.querySelector(".modal-backdrop") ? "e" : (ui.tab === "inventory" ? "inv" : "wish");
+      if (target === "wish" && ui.wishlist.addType !== "consider") { showToast("Switch the add toggle to ‘Option’ to attach an image", null); return; }
+      e.preventDefault();
+      handleImageFile(file, target);
+      return;
+    }
+  }
+});
+
 document.getElementById("menu-toggle").addEventListener("click", e => {
   e.stopPropagation();
   const m = document.getElementById("menu");
@@ -1470,7 +1584,7 @@ document.getElementById("menu-toggle").addEventListener("click", e => {
 });
 
 document.addEventListener("keydown", e => {
-  if (e.key === "Escape") { closeEditor(); document.getElementById("menu").classList.remove("open"); hideToast(); return; }
+  if (e.key === "Escape") { closeLightbox(); closeEditor(); document.getElementById("menu").classList.remove("open"); hideToast(); return; }
   if (e.key === "Enter" && (e.target.id === "inv-link" || e.target.id === "wish-link")) { e.preventDefault(); fetchLinkInto(e.target.id === "inv-link" ? "inv" : "wish"); return; }
   const tag = (e.target.tagName || "").toLowerCase();
   if (tag === "input" || tag === "textarea" || tag === "select" || e.target.isContentEditable) return;
