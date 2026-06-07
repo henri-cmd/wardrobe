@@ -1,25 +1,31 @@
 # Wardrobe
 
-A single-file web app to take stock of your clothes, spot the gaps, and weigh up what to buy — built to help you simplify your wardrobe.
+A single-file web app to take stock of your clothes, spot the gaps, weigh up what to buy, and move things on — built to help you simplify your wardrobe.
+
+It follows an item through its whole life: **Inventory** (what you own) → **Selling/Donating** (parting with) → **Decommissioned** (gone), with a **Wishlist** for the gaps you want to fill and the options you're comparing.
 
 No build step, no dependencies, no account. Open `index.html` in a browser and go. Everything is saved locally in that browser via `localStorage`.
 
 **Live:** <https://henri-cmd.github.io/wardrobe/>
 
-## Features
+## The four tabs
 
-- **Inventory** — log what you own (name, category, colour, brand, quantity, season), grouped by category with a live distribution strip. "Items owned" counts total pieces (quantities), and a **×N** badge shows multiples. Tag items **keep / donate** to declutter.
-- **Wishlist** — your **gaps** and the **options** to fill them, sorted into the same categories as your wardrobe. Gaps carry a priority; options carry a brand, price, status (considering / shortlisted / bought / passed), a link, and a running shortlist total. Each category shows how many you already own, so you can tell whether something fills a real gap.
+- **Inventory** — what you own (name, category, colour, brand, quantity, season), plus the **gaps** you've noted, grouped by category. "Items owned" counts total pieces, with a **×N** badge for multiples. The 🏷 tag on any item moves it to *For sale* or *To donate*.
+- **Wishlist** — a shopping board organised **Category → Gap → Options**. Each gap nests the options you're comparing (brand, price, status, link); options not tied to a gap sit in a *Not tied to a gap* bucket. Mark an option **Bought** and it converts into an Inventory item and **fills its gap**.
+- **Selling/Donating** — items you're parting with, tagged *for sale* (with an inline asking price; the tab totals what you'd recoup) or *to donate*. Mark one gone to send it to Decommissioned.
+- **Decommissioned** — what's left your wardrobe (**sold** / **donated** / **retired**), with the price you sold it for and a *recouped from sales* total. Restore anything back to your wardrobe.
+
+## Other features
+
 - **Images** — give any item or option a picture: **upload** a file, **paste** an image, **fetch** it from a product link, or enter an image URL. Uploads are downscaled to fit local storage; click any thumbnail to view it full-size.
-- **Add by link** — paste a product link on an item or option and it auto-fills the **name**, **image** and **brand** (via the [microlink](https://microlink.io) metadata service, with an OpenGraph fallback).
-- **Custom categories** — add your own categories (inline in any category dropdown, or in Settings), rename, delete, or **drag to reorder** them; they group and persist like the rest. No built-in defaults — the taxonomy is entirely yours.
-- **Views & ordering** — switch Inventory between a **list** and an image-forward **card** view, sort by recent / name / colour, or pick **Custom order** and drag items to arrange them within each category.
-- **Flows** — turn a gap into an option, then drop a bought option straight into your wardrobe.
-- **Yours, and portable** — JSON export / import for backups; your wardrobe data stays in your browser.
+- **Add by link** — paste a product link and it auto-fills the **name**, **image** and **brand** (via the [microlink](https://microlink.io) metadata service, with an OpenGraph fallback).
+- **Custom categories** — add your own (inline in any dropdown, or in Settings), rename, delete, or **drag to reorder** them. No built-in defaults — the taxonomy is entirely yours.
+- **Views & ordering** — switch Inventory between **list** and image-forward **card** views, sort by recent / name / colour, or pick **Custom order** and drag items to arrange them.
+- **Yours, and portable** — JSON export / import for backups; everything (incl. images) stays in your browser. Every destructive action has an **Undo**.
 
 ## Keyboard shortcuts
 
-`/` search · `n` new · `1` / `2` switch tabs · `esc` close
+`/` search · `n` new · `1`–`4` switch tabs · `esc` close
 
 ## Run it
 

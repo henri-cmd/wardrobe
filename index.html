@@ -133,7 +133,9 @@ header {
 .stat .val.amber { color: var(--amber); }
 
 /* Tabs */
-.tabs { display: flex; gap: 4px; margin-bottom: 20px; border-bottom: 1px solid var(--border); }
+.tabs { display: flex; gap: 4px; margin-bottom: 20px; border-bottom: 1px solid var(--border); overflow-x: auto; scrollbar-width: none; }
+.tabs::-webkit-scrollbar { display: none; }
+.tab { flex-shrink: 0; }
 .tab {
   background: transparent; border: none; color: var(--muted2); cursor: pointer;
   padding: 11px 16px; font-size: 13px; font-weight: 500; font-family: var(--sans);
@@ -268,6 +270,15 @@ select { cursor: pointer; appearance: none;
 .row.need { border-style: dashed; border-color: var(--border2); background: rgba(200,240,90,0.03); }
 .row.need:hover { border-color: var(--accent-border); background: var(--accent-dim); }
 .row.option { flex-wrap: wrap; }
+/* Wishlist: gap sub-headers with options nested beneath */
+.gap-head { display: flex; align-items: center; gap: 8px; margin: 13px 4px 7px; }
+.gap-head .gap-mark { color: var(--accent); font-size: 13px; flex-shrink: 0; }
+.gap-head .gap-title { font-weight: 600; font-size: 13px; letter-spacing: -0.01em; }
+.gap-head.loose .gap-mark, .gap-head.loose .gap-title { color: var(--muted2); font-weight: 500; }
+.gap-empty { color: var(--muted); font-size: 11.5px; font-family: var(--mono); margin: 0 4px 7px 22px; }
+.linklike { background: transparent; border: none; color: var(--accent); cursor: pointer; font: inherit; padding: 0; text-decoration: underline; }
+.gc-opt { font-family: var(--mono); font-size: 11px; color: var(--blue); }
+#wish-list .row.option { margin-left: 20px; }
 .row.option .main { min-width: 150px; }
 .row.option.closed { opacity: 0.55; }
 .opt-dot { width: 11px; height: 11px; border-radius: 50%; flex-shrink: 0; background: var(--muted); border: 1px solid rgba(255,255,255,0.2); }
@@ -305,7 +316,22 @@ select { cursor: pointer; appearance: none;
 .pill.high { color: var(--red); border-color: var(--red-border); background: var(--red-dim); }
 .pill.medium { color: var(--amber); border-color: var(--amber-border); background: var(--amber-dim); }
 .pill.low { color: var(--muted2); }
-.pill.donate { color: var(--amber); border-color: var(--amber-border); background: var(--amber-dim); }
+.pill.donate, .pill.donated { color: var(--amber); border-color: var(--amber-border); background: var(--amber-dim); }
+.pill.sell { color: var(--blue); border-color: var(--blue-border); background: var(--blue-dim); }
+.pill.sold { color: var(--green); border-color: var(--green-border); background: var(--green-dim); }
+.pill.retired { color: var(--muted2); }
+.row.gone { opacity: 0.6; }
+.row.gone .rthumb { filter: grayscale(0.6); }
+.tab-summary { font-family: var(--mono); font-size: 12.5px; color: var(--accent); margin: 0 2px 12px; }
+.sale-wrap { display: inline-flex; align-items: center; gap: 3px; background: var(--surface2); border: 1px solid var(--border2); border-radius: 7px; padding: 0 8px; flex-shrink: 0; }
+.sale-wrap .cur { color: var(--muted); font-family: var(--mono); font-size: 12px; }
+.sale-wrap .sale-price { width: 58px; background: transparent; border: none; padding: 7px 0; font-family: var(--mono); font-size: 12.5px; }
+.sale-wrap .sale-price:focus { background: transparent; }
+.popover { position: fixed; z-index: 85; background: var(--surface); border: 1px solid var(--border2); border-radius: 10px; box-shadow: 0 16px 44px rgba(0,0,0,0.5); padding: 6px; min-width: 158px; display: none; }
+.popover.show { display: block; }
+.popover button { display: flex; width: 100%; align-items: center; gap: 9px; background: transparent; border: none; color: var(--text); padding: 9px 10px; border-radius: 7px; cursor: pointer; font-size: 12.5px; font-family: var(--sans); text-align: left; }
+.popover button:hover { background: var(--surface2); }
+.popover button .svg { color: var(--muted2); }
 .pill.considering { color: var(--blue); border-color: var(--blue-border); background: var(--blue-dim); }
 .pill.shortlisted { color: var(--accent); border-color: var(--accent-border); background: var(--accent-dim); }
 .pill.bought { color: var(--green); border-color: var(--green-border); background: var(--green-dim); }
@@ -481,6 +507,8 @@ textarea { resize: vertical; min-height: 60px; }
   <div class="tabs" id="tabs">
     <button class="tab active" data-tab="inventory">Inventory <span class="count" id="c-inv">0</span></button>
     <button class="tab" data-tab="wishlist">Wishlist <span class="count" id="c-wish">0</span></button>
+    <button class="tab" data-tab="selling">Selling/Donating <span class="count" id="c-sell">0</span></button>
+    <button class="tab" data-tab="gone">Decommissioned <span class="count" id="c-gone">0</span></button>
   </div>
   <main id="main"></main>
 </div>
@@ -489,6 +517,7 @@ textarea { resize: vertical; min-height: 60px; }
 <div id="modal-root"></div>
 <div id="toast" class="toast"></div>
 <div id="lightbox" class="lightbox"></div>
+<div id="popover" class="popover"></div>
 
 <script>
 "use strict";
@@ -569,8 +598,8 @@ const UI_KEY = "wardrobe.ui.v1";
 function defaultUi() {
   return {
     tab: "inventory",
-    inv: { q: "", cat: "", status: "", sort: "recent", showNeeds: false, view: "list" },
-    wishlist: { q: "", cat: "", type: "", sort: "priority", showClosed: false, addType: "need" }
+    inv: { q: "", cat: "", status: "", sort: "recent", showNeeds: true, view: "list", addType: "item" },
+    wishlist: { q: "", cat: "", sort: "priority", showClosed: false, addGap: "" }
   };
 }
 function loadUi() {
@@ -580,7 +609,7 @@ function loadUi() {
     if (raw) {
       const s = JSON.parse(raw);
       if (s && typeof s === "object") {
-        if (s.tab === "inventory" || s.tab === "wishlist") d.tab = s.tab;
+        if (["inventory", "wishlist", "selling", "gone"].indexOf(s.tab) !== -1) d.tab = s.tab;
         if (s.inv) Object.assign(d.inv, s.inv);
         if (s.wishlist) Object.assign(d.wishlist, s.wishlist);
       }
@@ -713,22 +742,24 @@ function catSelect(id, sel, opts2) {
 /* ---------- Stats ---------- */
 function renderStats() {
   const items = state.items;
-  const donate = items.filter(i => i.status === "donate").length;
+  const keepItems = items.filter(i => (i.status || "keep") === "keep");
+  const sellDonate = items.filter(i => i.status === "donate" || i.status === "sell").length;
+  const goneCount = items.filter(i => i.status === "gone").length;
   const needsOpen = state.needs.filter(n => !n.done).length;
   const considering = state.consider.filter(c => c.status === "Considering" || c.status === "Shortlisted").length;
   const shortlistSum = state.consider.filter(c => c.status === "Shortlisted").reduce((a, c) => a + (Number(c.price) || 0), 0);
 
   document.getElementById("stats").innerHTML =
-    stat("Items owned", items.reduce((a, i) => a + qtyOf(i), 0), "") +
-    stat("To donate", donate, donate ? "amber" : "") +
-    stat("Needs open", needsOpen, needsOpen ? "blue" : "") +
-    stat("Considering", considering, "") +
+    stat("Items owned", keepItems.reduce((a, i) => a + qtyOf(i), 0), "") +
+    stat("Sell / donate", sellDonate, sellDonate ? "amber" : "") +
+    stat("Gaps", needsOpen, needsOpen ? "blue" : "") +
+    stat("Options", considering, "") +
     stat("Shortlist", money(shortlistSum), "accent");
 
-  document.getElementById("c-inv").textContent = items.length;
-  // Wishlist count = open gaps + active options (considering / shortlisted)
-  const activeOpts = state.consider.filter(c => c.status === "Considering" || c.status === "Shortlisted").length;
-  document.getElementById("c-wish").textContent = needsOpen + activeOpts;
+  document.getElementById("c-inv").textContent = keepItems.length;
+  document.getElementById("c-wish").textContent = considering;
+  document.getElementById("c-sell").textContent = sellDonate;
+  document.getElementById("c-gone").textContent = goneCount;
 }
 function stat(label, val, cls) {
   return '<div class="stat"><div class="label">' + esc(label) + '</div><div class="val ' + cls + '">' + esc(val) + "</div></div>";
@@ -747,28 +778,35 @@ function renderInventory() {
   ) : "";
 
   const openNeedsCount = state.needs.filter(n => !n.done).length;
+  const addGap = ui.inv.addType === "gap";
 
   document.getElementById("main").innerHTML =
     intro +
     '<form class="quickbar" id="form-inv">' +
-      '<div class="linkrow">' +
-        '<input class="grow" id="inv-link" placeholder="🔗 Paste a product link to auto-fill name &amp; image (optional)" autocomplete="off">' +
-        '<button type="button" class="btn ghost sm" id="inv-fetch" data-action="fetch-link" data-for="inv">Fetch</button>' +
-        '<button type="button" class="btn ghost sm" data-action="upload-img" data-for="inv" title="Upload an image from your device">Upload</button>' +
-        '<div class="thumb-preview" id="inv-thumb"></div>' +
+      '<div class="seg" id="inv-addtype">' +
+        '<button type="button" data-t="item" class="' + (addGap ? "" : "on") + '">Item</button>' +
+        '<button type="button" data-t="gap" class="' + (addGap ? "on" : "") + '">Gap</button>' +
       "</div>" +
-      '<input class="grow" id="inv-name" placeholder="Item name (e.g. Oxford shirt)" autocomplete="off" required>' +
+      (addGap ? "" :
+        '<div class="linkrow">' +
+          '<input class="grow" id="inv-link" placeholder="🔗 Paste a product link to auto-fill name &amp; image (optional)" autocomplete="off">' +
+          '<button type="button" class="btn ghost sm" id="inv-fetch" data-action="fetch-link" data-for="inv">Fetch</button>' +
+          '<button type="button" class="btn ghost sm" data-action="upload-img" data-for="inv" title="Upload an image from your device">Upload</button>' +
+          '<div class="thumb-preview" id="inv-thumb"></div>' +
+        "</div>") +
+      '<input class="grow" id="inv-name" placeholder="' + (addGap ? "What are you missing? (e.g. a rain jacket)" : "Item name (e.g. Oxford shirt)") + '" autocomplete="off" required>' +
       catSelect("inv-cat", "", { placeholder: "Category…" }) +
-      '<input id="inv-colour" placeholder="Colour" autocomplete="off" style="width:110px">' +
-      '<input id="inv-brand" placeholder="Brand" autocomplete="off" style="width:110px">' +
+      '<input id="inv-colour" placeholder="Colour" autocomplete="off" style="width:110px;' + (addGap ? "display:none" : "") + '">' +
+      '<input id="inv-brand" placeholder="Brand" autocomplete="off" style="width:110px;' + (addGap ? "display:none" : "") + '">' +
+      '<select id="inv-gap-pri" style="width:auto;' + (addGap ? "" : "display:none") + '">' + opts(PRIORITIES, "Medium") + "</select>" +
       '<input id="inv-qty" type="number" min="1" step="1" value="1" title="Quantity" autocomplete="off" style="width:62px">' +
-      '<button class="btn" type="submit"><svg class="svg sm" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Add item</button>' +
+      '<button class="btn" type="submit"><svg class="svg sm" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>' + (addGap ? "Add gap" : "Add item") + "</button>" +
     "</form>" +
     '<div class="cats" id="inv-cats"></div>' +
     '<div class="filters">' +
       '<input class="search" id="inv-q" placeholder="Search items…" autocomplete="off" value="' + esc(ui.inv.q) + '">' +
       '<button type="button" id="inv-showneeds" class="toggle-pill' + (ui.inv.showNeeds ? " on" : "") + '" data-action="toggle-showneeds" title="Show the gaps you\'ve noted from Needs, slotted into each category">' + needsToggleHTML(openNeedsCount) + "</button>" +
-      '<select id="inv-status"><option value="">All items</option><option value="keep"' + (ui.inv.status==="keep"?" selected":"") + '>Keeping</option><option value="donate"' + (ui.inv.status==="donate"?" selected":"") + '>To donate</option></select>' +
+      '' +
       '<select id="inv-sort"><option value="recent"' + (ui.inv.sort==="recent"?" selected":"") + '>Recently added</option><option value="name"' + (ui.inv.sort==="name"?" selected":"") + '>Name A–Z</option><option value="colour"' + (ui.inv.sort==="colour"?" selected":"") + '>Colour</option><option value="custom"' + (ui.inv.sort==="custom"?" selected":"") + '>Custom order</option></select>' +
       '<div class="seg" id="inv-view">' +
         '<button type="button" data-action="set-view" data-view="list" class="' + (ui.inv.view!=="cards"?"on":"") + '" title="List view"><svg class="svg sm" viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg></button>' +
@@ -787,9 +825,9 @@ function fillInventory() {
   const tEl = document.getElementById("inv-showneeds");
   if (tEl) tEl.innerHTML = needsToggleHTML(state.needs.filter(n => !n.done).length);
 
-  // category distribution chips (from full inventory)
+  // category distribution chips (kept items only — donate/sell/gone live in their own tabs)
   const counts = {};
-  state.items.forEach(i => { counts[i.category] = (counts[i.category] || 0) + 1; });
+  state.items.filter(i => (i.status || "keep") === "keep").forEach(i => { counts[i.category] = (counts[i.category] || 0) + 1; });
   const catList = allCategories().filter(c => counts[c]);   // follow the user's custom category order
   const max = catList.reduce((m, c) => counts[c] > m ? counts[c] : m, 1);
   const chipsEl = document.getElementById("inv-cats");
@@ -803,14 +841,13 @@ function fillInventory() {
     }).join("");
   }
 
-  // filter
-  let items = state.items.slice();
+  // filter — Inventory shows only kept items (donate/sell/gone have their own tabs)
+  let items = state.items.filter(i => (i.status || "keep") === "keep");
   if (f.q) {
     const q = f.q.toLowerCase();
     items = items.filter(i => ((i.name || "") + " " + (i.brand || "") + " " + (i.colour || "") + " " + (i.category || "")).toLowerCase().includes(q));
   }
   if (f.cat) items = items.filter(i => i.category === f.cat);
-  if (f.status) items = items.filter(i => (i.status || "keep") === f.status);
 
   const sorter = {
     recent: (a, b) => (b.createdAt || 0) - (a.createdAt || 0),
@@ -870,7 +907,7 @@ function fillInventory() {
 }
 
 function needsToggleHTML(count) {
-  return '<svg class="svg sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg>Needs' + (count ? ' <span class="tp-count">' + count + "</span>" : "");
+  return '<svg class="svg sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg>Gaps' + (count ? ' <span class="tp-count">' + count + "</span>" : "");
 }
 
 function groupHead(cat, itemCount, needCount) {
@@ -880,13 +917,15 @@ function groupHead(cat, itemCount, needCount) {
 
 // A need rendered inside the Inventory list — visually distinct (dashed, accent) from owned items.
 function inventoryNeedRow(n) {
+  const opts = state.consider.filter(c => c.gapId === n.id && c.status !== "Passed");
+  const optTxt = opts.length ? opts.length + " option" + (opts.length > 1 ? "s" : "") : "no options yet";
   return '<div class="row need" data-id="' + n.id + '">' +
     '<button class="check need" data-action="toggle-need" data-id="' + n.id + '" title="Mark as filled (you got it)"></button>' +
-    '<div class="main"><div class="name">' + esc(n.name) + " " + (qtyOf(n) > 1 ? '<span class="qty">×' + qtyOf(n) + "</span> " : "") + '<span class="needtag">need</span></div>' +
-      (n.notes ? '<div class="meta">' + esc(n.notes) + "</div>" : "") + "</div>" +
+    '<div class="main"><div class="name">' + esc(n.name) + " " + (qtyOf(n) > 1 ? '<span class="qty">×' + qtyOf(n) + "</span> " : "") + '<span class="needtag">gap</span></div>' +
+      '<div class="meta">' + optTxt + (n.notes ? ' <span class="sep">·</span> ' + esc(n.notes) : "") + "</div></div>" +
     '<span class="pill ' + priClass(n.priority) + '">' + esc(n.priority || "Low") + "</span>" +
     '<div class="acts">' +
-      '<button class="act" data-action="need-to-consider" data-id="' + n.id + '" title="Find options to consider"><svg class="svg sm" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg></button>' +
+      '<button class="act" data-action="gap-options" data-id="' + n.id + '" title="See / add options for this gap"><svg class="svg sm" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg></button>' +
       '<button class="act" data-action="edit" data-type="need" data-id="' + n.id + '" title="Edit"><svg class="svg sm" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></button>' +
       '<button class="act del" data-action="delete" data-type="need" data-id="' + n.id + '" title="Delete"><svg class="svg sm" viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></button>' +
     "</div></div>";
@@ -897,6 +936,10 @@ const SVG_LINK = '<svg class="svg sm" viewBox="0 0 24 24"><path d="M10 13a5 5 0 
 const SVG_HEART = '<svg class="svg sm" viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 1 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"/></svg>';
 const SVG_EDIT = '<svg class="svg sm" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>';
 const SVG_TRASH = '<svg class="svg sm" viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>';
+const SVG_SWAP = '<svg class="svg sm" viewBox="0 0 24 24"><path d="M16 3l4 4-4 4M20 7H6M8 21l-4-4 4-4M4 17h14"/></svg>';
+const SVG_CHECK = '<svg class="svg sm" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>';
+const SVG_BACK = '<svg class="svg sm" viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-3"/></svg>';
+const SVG_TAG = '<svg class="svg sm" viewBox="0 0 24 24"><path d="M20.59 13.41 13.42 20.59a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><circle cx="7" cy="7" r="1.2"/></svg>';
 function itemMeta(i) {
   const m = [];
   if (i.brand) m.push(esc(i.brand));
@@ -906,7 +949,7 @@ function itemMeta(i) {
 }
 function itemActs(i, iurl) {
   return (iurl ? '<a class="act" href="' + esc(iurl) + '" target="_blank" rel="noopener" title="Open link">' + SVG_LINK + "</a>" : "") +
-    '<button class="act donate' + (i.status === "donate" ? " on" : "") + '" data-action="toggle-donate" data-id="' + i.id + '" title="' + (i.status === "donate" ? "Keep this" : "Mark to donate") + '">' + SVG_HEART + "</button>" +
+    '<button class="act" data-action="offload-menu" data-id="' + i.id + '" title="Sell or donate">' + SVG_TAG + "</button>" +
     '<button class="act" data-action="edit" data-type="item" data-id="' + i.id + '" title="Edit">' + SVG_EDIT + "</button>" +
     '<button class="act del" data-action="delete" data-type="item" data-id="' + i.id + '" title="Delete">' + SVG_TRASH + "</button>";
 }
@@ -939,42 +982,102 @@ function itemCard(i) {
     '<div class="icard-acts">' + itemActs(i, iurl) + "</div></div>";
 }
 
+/* ---------- Selling/Donating & Decommissioned tabs ---------- */
+function groupItemsByCategory(items, rowFn) {
+  let html = "";
+  allCategories().forEach(cat => {
+    const inCat = items.filter(i => i.category === cat);
+    if (!inCat.length) return;
+    html += '<div class="group-head"><h3>' + esc(cat) + '</h3><span class="gc">' + inCat.length + "</span></div>";
+    inCat.forEach(i => { html += rowFn(i); });
+  });
+  const others = items.filter(i => allCategories().indexOf(i.category) === -1);
+  if (others.length) {
+    html += '<div class="group-head"><h3>Uncategorised</h3><span class="gc">' + others.length + "</span></div>";
+    others.forEach(i => { html += rowFn(i); });
+  }
+  return html;
+}
+function sellRow(i) {
+  const isSell = i.status === "sell";
+  const meta = itemMeta(i).join(" · ");
+  const cur = state.settings.currency || "£";
+  return '<div class="row" data-id="' + i.id + '">' +
+    (i.image ? '<span class="rthumb">' + thumbImg(i.image) + "</span>" : colourSwatch(i.colour)) +
+    '<div class="main"><div class="name">' + esc(i.name) + ' <span class="pill ' + (isSell ? "sell" : "donate") + '">' + (isSell ? "for sale" : "to donate") + "</span></div>" +
+      (meta ? '<div class="meta">' + esc(meta) + "</div>" : "") + "</div>" +
+    (isSell ? '<span class="sale-wrap"><span class="cur">' + esc(cur) + '</span><input class="sale-price" data-id="' + i.id + '" inputmode="decimal" autocomplete="off" placeholder="price" value="' + (Number(i.salePrice) > 0 ? esc(i.salePrice) : "") + '" title="Asking price"></span>' : "") +
+    '<div class="acts">' +
+      '<button class="act" data-action="sell-toggle" data-id="' + i.id + '" title="Switch to ' + (isSell ? "donate" : "sell") + '">' + SVG_SWAP + "</button>" +
+      '<button class="act" data-action="decommission" data-id="' + i.id + '" title="' + (isSell ? "Sold" : "Donated") + " — move to Decommissioned\">" + SVG_CHECK + "</button>" +
+      '<button class="act" data-action="restore-keep" data-id="' + i.id + '" title="Keep — back to wardrobe">' + SVG_BACK + "</button>" +
+      '<button class="act" data-action="edit" data-type="item" data-id="' + i.id + '" title="Edit">' + SVG_EDIT + "</button>" +
+      '<button class="act del" data-action="delete" data-type="item" data-id="' + i.id + '" title="Delete">' + SVG_TRASH + "</button>" +
+    "</div></div>";
+}
+function goneRow(i) {
+  const meta = itemMeta(i).join(" · ");
+  const outcome = i.outcome || "retired";
+  const soldFor = (outcome === "sold" && Number(i.salePrice) > 0) ? '<span class="row-price">' + money(i.salePrice) + "</span>" : "";
+  return '<div class="row gone" data-id="' + i.id + '">' +
+    (i.image ? '<span class="rthumb">' + thumbImg(i.image) + "</span>" : colourSwatch(i.colour)) +
+    '<div class="main"><div class="name">' + esc(i.name) + ' <span class="pill ' + outcome + '">' + outcome + "</span></div>" +
+      (meta ? '<div class="meta">' + esc(meta) + "</div>" : "") + "</div>" +
+    soldFor +
+    '<div class="acts">' +
+      '<button class="act" data-action="restore-keep" data-id="' + i.id + '" title="Restore to wardrobe">' + SVG_BACK + "</button>" +
+      '<button class="act del" data-action="delete" data-type="item" data-id="' + i.id + '" title="Delete permanently">' + SVG_TRASH + "</button>" +
+    "</div></div>";
+}
+function renderSelling() {
+  const items = state.items.filter(i => i.status === "donate" || i.status === "sell");
+  const listTotal = items.filter(i => i.status === "sell").reduce((a, i) => a + (Number(i.salePrice) || 0), 0);
+  const summary = listTotal > 0 ? '<div class="tab-summary">' + money(listTotal) + " if you sell everything listed</div>" : "";
+  document.getElementById("main").innerHTML = items.length
+    ? '<div class="reorder-hint">⇄ switch sell ↔ donate · set an asking price · ✓ mark it gone (sold/donated) · ↩ keep it.</div>' + summary + groupItemsByCategory(items, sellRow)
+    : emptyState("🏷️", "Nothing to sell or donate", "When you're ready to part with something, open it in Inventory and use the 🏷 tag to move it here as For sale or To donate.");
+}
+function renderGone() {
+  const items = state.items.filter(i => i.status === "gone");
+  const recouped = items.filter(i => i.outcome === "sold").reduce((a, i) => a + (Number(i.salePrice) || 0), 0);
+  const summary = recouped > 0 ? '<div class="tab-summary">' + money(recouped) + " recouped from sales</div>" : "";
+  document.getElementById("main").innerHTML = items.length
+    ? '<div class="reorder-hint">Items that have left your wardrobe. ↩ restore one, or delete it for good.</div>' + summary + groupItemsByCategory(items, goneRow)
+    : emptyState("📦", "Nothing decommissioned", "Things you've sold, donated or retired get archived here once they leave your wardrobe.");
+}
+
 /* ---------- Wishlist (gaps + options, grouped by category like Inventory) ---------- */
+function gapSelect(id, sel) {
+  const openGaps = state.needs.filter(n => !n.done);
+  let html = '<option value="">— Not tied to a gap —</option>';
+  const grp = (label, gaps) => gaps.length ? '<optgroup label="' + esc(label) + '">' + gaps.map(g => '<option value="' + g.id + '"' + (g.id === sel ? " selected" : "") + ">" + esc(g.name) + "</option>").join("") + "</optgroup>" : "";
+  allCategories().forEach(cat => { html += grp(cat, openGaps.filter(g => g.category === cat)); });
+  html += grp("Uncategorised", openGaps.filter(g => allCategories().indexOf(g.category) === -1));
+  return '<select id="' + id + '" title="Which gap is this option for?">' + html + "</select>";
+}
 function renderWishlist() {
   const w = ui.wishlist;
-  const addNeed = w.addType === "need";
   document.getElementById("main").innerHTML =
     '<form class="quickbar" id="form-wish">' +
-      '<div class="seg" id="wish-addtype">' +
-        '<button type="button" data-t="need" class="' + (addNeed ? "on" : "") + '">Gap</button>' +
-        '<button type="button" data-t="consider" class="' + (addNeed ? "" : "on") + '">Option</button>' +
+      '<div class="linkrow">' +
+        '<input class="grow" id="wish-link" placeholder="🔗 Paste a product link to auto-fill name &amp; image (optional)" autocomplete="off">' +
+        '<button type="button" class="btn ghost sm" id="wish-fetch" data-action="fetch-link" data-for="wish">Fetch</button>' +
+        '<button type="button" class="btn ghost sm" data-action="upload-img" data-for="wish" title="Upload an image from your device">Upload</button>' +
+        '<div class="thumb-preview" id="wish-thumb"></div>' +
       "</div>" +
-      (addNeed ? "" :
-        '<div class="linkrow">' +
-          '<input class="grow" id="wish-link" placeholder="🔗 Paste a product link to auto-fill name &amp; image (optional)" autocomplete="off">' +
-          '<button type="button" class="btn ghost sm" id="wish-fetch" data-action="fetch-link" data-for="wish">Fetch</button>' +
-          '<button type="button" class="btn ghost sm" data-action="upload-img" data-for="wish" title="Upload an image from your device">Upload</button>' +
-          '<div class="thumb-preview" id="wish-thumb"></div>' +
-        "</div>") +
-      '<input class="grow" id="wish-name" placeholder="' + (addNeed ? "What are you missing? (e.g. a versatile navy jumper)" : "An option you're weighing (e.g. Uniqlo merino crew)") + '" autocomplete="off" required>' +
-      catSelect("wish-cat", "", { placeholder: "Category…" }) +
-      '<select id="wish-pri" style="width:auto;' + (addNeed ? "" : "display:none") + '">' + opts(PRIORITIES, "Medium") + "</select>" +
-      '<input id="wish-need-qty" type="number" min="1" step="1" value="1" title="Quantity" autocomplete="off" style="width:62px;' + (addNeed ? "" : "display:none") + '">' +
-      '<input id="wish-price" placeholder="Price" inputmode="decimal" autocomplete="off" style="width:90px;' + (addNeed ? "display:none" : "") + '">' +
-      '<input id="wish-brand" placeholder="Brand" autocomplete="off" style="width:110px;' + (addNeed ? "display:none" : "") + '">' +
-      '<button class="btn" type="submit"><svg class="svg sm" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>' + (addNeed ? "Add gap" : "Add option") + "</button>" +
+      gapSelect("wish-gap", w.addGap) +
+      '<input class="grow" id="wish-name" placeholder="An option you\'re weighing (e.g. Uniqlo merino crew)" autocomplete="off" required>' +
+      '<span id="wish-cat-wrap"' + (w.addGap ? ' style="display:none"' : "") + ">" + catSelect("wish-cat", "", { placeholder: "Category…" }) + "</span>" +
+      '<input id="wish-price" placeholder="Price" inputmode="decimal" autocomplete="off" style="width:90px">' +
+      '<input id="wish-brand" placeholder="Brand" autocomplete="off" style="width:110px">' +
+      '<button class="btn" type="submit"><svg class="svg sm" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Add option</button>' +
     "</form>" +
     '<div class="cats" id="wish-cats"></div>' +
     '<div class="filters">' +
-      '<input class="search" id="wish-q" placeholder="Search gaps & options…" autocomplete="off" value="' + esc(w.q) + '">' +
-      '<div class="seg" id="wish-type">' +
-        '<button type="button" data-t="" class="' + (w.type === "" ? "on" : "") + '">All</button>' +
-        '<button type="button" data-t="need" class="' + (w.type === "need" ? "on" : "") + '">Gaps</button>' +
-        '<button type="button" data-t="consider" class="' + (w.type === "consider" ? "on" : "") + '">Options</button>' +
-      "</div>" +
+      '<input class="search" id="wish-q" placeholder="Search options…" autocomplete="off" value="' + esc(w.q) + '">' +
       '<button type="button" id="wish-showclosed" class="toggle-pill' + (w.showClosed ? " on" : "") + '" data-action="toggle-showclosed" title="Show bought &amp; passed options">Closed</button>' +
       '<div class="spread" style="flex:1"></div>' +
-      '<select id="wish-sort"><option value="priority"' + (w.sort==="priority"?" selected":"") + '>By priority</option><option value="price"' + (w.sort==="price"?" selected":"") + '>By price</option><option value="recent"' + (w.sort==="recent"?" selected":"") + '>Recently added</option></select>' +
+      '<select id="wish-sort"><option value="priority"' + (w.sort==="priority"?" selected":"") + '>By status</option><option value="price"' + (w.sort==="price"?" selected":"") + '>By price</option><option value="recent"' + (w.sort==="recent"?" selected":"") + '>Recently added</option></select>' +
     "</div>" +
     '<div id="wish-list"></div>';
   fillWishlist();
@@ -987,106 +1090,91 @@ function fillWishlist() {
   saveUi();
   const q = w.q.toLowerCase();
 
-  // owned-per-category, mirroring the Inventory distribution (incl. how many are flagged to donate)
   const owned = {};
-  state.items.forEach(i => {
-    const o = owned[i.category] || (owned[i.category] = { total: 0, donate: 0 });
-    o.total++; if (i.status === "donate") o.donate++;
-  });
+  state.items.forEach(i => { const o = owned[i.category] || (owned[i.category] = { total: 0, donate: 0 }); o.total++; if (i.status === "donate") o.donate++; });
 
-  // open gaps (needs) + options, filtered by type / closed / category / search
-  let needs = state.needs.filter(n => !n.done);
+  // options filtered by closed / category / search
   let options = state.consider.slice();
   if (!w.showClosed) options = options.filter(c => c.status !== "Bought" && c.status !== "Passed");
-  if (w.type === "need") options = [];
-  if (w.type === "consider") needs = [];
-  if (w.cat) { needs = needs.filter(n => n.category === w.cat); options = options.filter(c => c.category === w.cat); }
-  if (q) {
-    needs = needs.filter(n => ((n.name||"") + " " + (n.category||"") + " " + (n.notes||"")).toLowerCase().includes(q));
-    options = options.filter(c => ((c.name||"") + " " + (c.category||"") + " " + (c.notes||"")).toLowerCase().includes(q));
-  }
+  if (w.cat) options = options.filter(c => c.category === w.cat);
+  if (q) options = options.filter(c => ((c.name||"") + " " + (c.brand||"") + " " + (c.category||"") + " " + (c.notes||"")).toLowerCase().includes(q));
 
-  // category distribution chips (open gaps + active options across the whole wishlist)
+  const openGaps = state.needs.filter(n => !n.done);
+  const gapById = {}; openGaps.forEach(g => gapById[g.id] = g);
+
+  // category chips: open gaps + active options per category
   const counts = {};
-  state.needs.filter(n => !n.done).forEach(n => { counts[n.category] = (counts[n.category] || 0) + 1; });
+  openGaps.forEach(n => { counts[n.category] = (counts[n.category] || 0) + 1; });
   state.consider.filter(c => c.status !== "Bought" && c.status !== "Passed").forEach(c => { counts[c.category] = (counts[c.category] || 0) + 1; });
-  const catList = allCategories().filter(c => counts[c]);   // follow the user's custom category order
+  const catList = allCategories().filter(c => counts[c]);
   const max = catList.reduce((m, c) => counts[c] > m ? counts[c] : m, 1);
   const chipsEl = document.getElementById("wish-cats");
   if (chipsEl) {
     chipsEl.innerHTML = catList.map(c => {
       const pct = Math.round((counts[c] / max) * 100);
-      const active = w.cat === c ? " active" : "";
-      return '<div class="cat-chip' + active + '" data-action="wish-filter-cat" data-cat="' + esc(c) + '">' +
-        '<span class="bar" style="width:' + pct + '%"></span>' +
-        "<span>" + esc(c) + '</span><span class="n">' + counts[c] + "</span></div>";
+      return '<div class="cat-chip' + (w.cat === c ? " active" : "") + '" data-action="wish-filter-cat" data-cat="' + esc(c) + '"><span class="bar" style="width:' + pct + '%"></span><span>' + esc(c) + '</span><span class="n">' + counts[c] + "</span></div>";
     }).join("");
   }
 
-  const sortNeed = {
-    priority: (a, b) => priRank(a.priority) - priRank(b.priority) || (b.createdAt||0) - (a.createdAt||0),
-    price: (a, b) => (b.createdAt||0) - (a.createdAt||0),
-    recent: (a, b) => (b.createdAt||0) - (a.createdAt||0)
-  }[w.sort] || (() => 0);
   const sortOpt = {
     priority: (a, b) => optStatusRank(a.status) - optStatusRank(b.status) || priRank(a.priority) - priRank(b.priority) || (b.createdAt||0) - (a.createdAt||0),
     price: (a, b) => (Number(a.price)||0) - (Number(b.price)||0),
     recent: (a, b) => (b.createdAt||0) - (a.createdAt||0)
   }[w.sort] || (() => 0);
+  const sortGap = (a, b) => priRank(a.priority) - priRank(b.priority) || (b.createdAt||0) - (a.createdAt||0);
 
   const listEl = document.getElementById("wish-list");
-  if (state.needs.filter(n => !n.done).length === 0 && state.consider.length === 0) {
-    listEl.innerHTML = emptyState("✨", "Nothing on your wishlist yet", "Use the toggle above to note a gap you've spotted, or add a specific option you're weighing up. Both sort into the same categories as your wardrobe, so you can see what's missing where.");
-    return;
-  }
-  if (needs.length === 0 && options.length === 0) {
-    listEl.innerHTML = emptyState("🔍", "No matches", "Nothing fits your current filters. Try clearing the search, category or type — or switch on Closed to see bought & passed options.");
+  if (state.consider.length === 0 && openGaps.length === 0) {
+    listEl.innerHTML = emptyState("✨", "Nothing to shop for yet", "Note gaps on the Inventory tab (flip the add bar to “Gap”), then come back here to add the options you're weighing for each — paste a product link and it pulls the image, brand and a place to price-compare.");
     return;
   }
 
-  // group by category (canonical order): gaps first, then options
+  const buildCat = (cat, uncat) => {
+    const inCat = x => uncat ? allCategories().indexOf(x.category) === -1 : x.category === cat;
+    const catOptions = options.filter(inCat);
+    const catGaps = openGaps.filter(inCat).sort(sortGap);
+    const looseOpts = catOptions.filter(c => !c.gapId || !gapById[c.gapId]).sort(sortOpt);
+    if (!catGaps.length && !looseOpts.length) return "";
+    let block = wishCatHead(uncat ? "Uncategorised" : cat, owned);
+    catGaps.forEach(g => {
+      block += gapHead(g);
+      const gOpts = catOptions.filter(c => c.gapId === g.id).sort(sortOpt);
+      block += gOpts.length
+        ? gOpts.map(optionRow).join("")
+        : '<div class="gap-empty">No options yet — <button type="button" class="linklike" data-action="add-option-for" data-id="' + g.id + '">add one</button></div>';
+    });
+    if (looseOpts.length) { block += looseHead(looseOpts.length); block += looseOpts.map(optionRow).join(""); }
+    return block;
+  };
+
   let html = "";
   const order = w.cat ? [w.cat] : allCategories();
-  order.forEach(cat => {
-    const nC = needs.filter(n => n.category === cat).sort(sortNeed);
-    const oC = options.filter(c => c.category === cat).sort(sortOpt);
-    if (!nC.length && !oC.length) return;
-    html += wishGroupHead(cat, nC.length, oC.length, owned);
-    nC.forEach(n => { html += wishNeedRow(n); });
-    oC.forEach(c => { html += optionRow(c); });
-  });
-  const nOther = needs.filter(n => allCategories().indexOf(n.category) === -1).sort(sortNeed);
-  const oOther = options.filter(c => allCategories().indexOf(c.category) === -1).sort(sortOpt);
-  if ((nOther.length || oOther.length) && !w.cat) {
-    html += wishGroupHead("Uncategorised", nOther.length, oOther.length, owned);
-    nOther.forEach(n => { html += wishNeedRow(n); });
-    oOther.forEach(c => { html += optionRow(c); });
-  }
-  listEl.innerHTML = html;
+  order.forEach(cat => { html += buildCat(cat, false); });
+  if (!w.cat) html += buildCat(null, true);
+
+  listEl.innerHTML = html || emptyState("🔍", "No options here", "No options match your filters. Add one above (pick its gap, or “Not tied to a gap”), or toggle Closed to see bought & passed ones.");
 }
 
-function wishGroupHead(cat, nNeed, nOpt, owned) {
+function wishCatHead(cat, owned) {
   const o = owned[cat] || { total: 0, donate: 0 };
   const ownBadge = (cat !== "Uncategorised")
     ? ' <span class="gc-own" data-action="goto-cat" data-cat="' + esc(cat) + '" title="See your ' + esc(cat) + ' in the wardrobe">' + (o.total ? o.total + " in wardrobe" : "none owned") + "</span>"
     : "";
-  const gapBadge = nNeed ? ' <span class="gc-need">' + nNeed + " gap" + (nNeed > 1 ? "s" : "") + "</span>" : "";
-  const optBadge = nOpt ? ' <span class="gc-opt">' + nOpt + " option" + (nOpt > 1 ? "s" : "") + "</span>" : "";
-  return '<div class="group-head"><h3>' + esc(cat) + "</h3>" + ownBadge + gapBadge + optBadge + "</div>";
+  return '<div class="group-head"><h3>' + esc(cat) + "</h3>" + ownBadge + "</div>";
 }
-
-// A gap (need) rendered as a row in the Wishlist.
-function wishNeedRow(n) {
-  return '<div class="row need" data-id="' + n.id + '">' +
-    '<button class="check need" data-action="toggle-need" data-id="' + n.id + '" title="Mark as filled (you got it)"></button>' +
-    '<div class="main"><div class="name">' + esc(n.name) + " " + (qtyOf(n) > 1 ? '<span class="qty">×' + qtyOf(n) + "</span> " : "") + '<span class="needtag">gap</span></div>' +
-      (n.notes ? '<div class="meta">' + esc(n.notes) + "</div>" : "") + "</div>" +
-    '<span class="pill ' + priClass(n.priority) + '">' + esc(n.priority || "Low") + "</span>" +
-    '<div class="acts">' +
-      '<button class="act" data-action="need-to-consider" data-id="' + n.id + '" title="Add an option for this gap"><svg class="svg sm" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>' +
-      '<button class="act" data-action="edit" data-type="need" data-id="' + n.id + '" title="Edit"><svg class="svg sm" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></button>' +
-      '<button class="act del" data-action="delete" data-type="need" data-id="' + n.id + '" title="Delete"><svg class="svg sm" viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></button>' +
-    "</div></div>";
+function gapHead(g) {
+  return '<div class="gap-head" data-id="' + g.id + '">' +
+    '<span class="gap-mark">◇</span>' +
+    '<span class="gap-title">' + esc(g.name) + (qtyOf(g) > 1 ? ' <span class="qty">×' + qtyOf(g) + "</span>" : "") + "</span>" +
+    '<span class="pill ' + priClass(g.priority) + '">' + esc(g.priority || "Low") + "</span>" +
+    '<span class="spread"></span>' +
+    '<button type="button" class="btn ghost sm" data-action="add-option-for" data-id="' + g.id + '">+ option</button>' +
+    '<button class="act" data-action="fill-gap" data-id="' + g.id + '" title="Mark this gap filled"><svg class="svg sm" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></button>' +
+    '<button class="act" data-action="edit" data-type="need" data-id="' + g.id + '" title="Edit gap"><svg class="svg sm" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></button>' +
+  "</div>";
+}
+function looseHead(count) {
+  return '<div class="gap-head loose"><span class="gap-mark">~</span><span class="gap-title">Not tied to a gap</span><span class="spread"></span><span class="gc-opt">' + count + " option" + (count > 1 ? "s" : "") + "</span></div>";
 }
 
 // An option (consider candidate) rendered as a row in the Wishlist.
@@ -1108,7 +1196,7 @@ function optionRow(c) {
     '<span class="pill ' + priClass(c.priority) + '">' + esc(c.priority || "Low") + "</span>" +
     '<div class="acts">' +
       link +
-      '<button class="act" data-action="consider-to-wardrobe" data-id="' + c.id + '" title="Add to wardrobe"><svg class="svg sm" viewBox="0 0 24 24"><path d="M20.38 3.46 16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.47a1 1 0 0 0 .99.84H6v10a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V10h2.15a1 1 0 0 0 .99-.84l.58-3.47a2 2 0 0 0-1.34-2.23z"/></svg></button>' +
+      '<button class="act" data-action="consider-to-wardrobe" data-id="' + c.id + '" title="Bought it — add to wardrobe (fills the gap)"><svg class="svg sm" viewBox="0 0 24 24"><path d="M20.38 3.46 16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.47a1 1 0 0 0 .99.84H6v10a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V10h2.15a1 1 0 0 0 .99-.84l.58-3.47a2 2 0 0 0-1.34-2.23z"/></svg></button>' +
       '<button class="act" data-action="edit" data-type="consider" data-id="' + c.id + '" title="Edit"><svg class="svg sm" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></button>' +
       '<button class="act del" data-action="delete" data-type="consider" data-id="' + c.id + '" title="Delete"><svg class="svg sm" viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></button>' +
     "</div></div>";
@@ -1124,13 +1212,17 @@ function emptyState(ico, title, body) {
 /* ---------- Render dispatch ---------- */
 function renderMain() {
   document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.dataset.tab === ui.tab));
-  if (ui.tab === "inventory") renderInventory();
-  else renderWishlist();
+  if (ui.tab === "wishlist") renderWishlist();
+  else if (ui.tab === "selling") renderSelling();
+  else if (ui.tab === "gone") renderGone();
+  else renderInventory();
 }
 function refresh() {
   renderStats();
-  if (ui.tab === "inventory") fillInventory();
-  else fillWishlist();
+  if (ui.tab === "wishlist") fillWishlist();
+  else if (ui.tab === "selling") renderSelling();
+  else if (ui.tab === "gone") renderGone();
+  else fillInventory();
 }
 function renderAll() { renderStats(); renderMain(); }
 
@@ -1158,7 +1250,13 @@ function openEditor(type, id) {
         fieldSelect("e-season", "Season", SEASONS, rec.season || "All-season") +
       "</div>" +
       '<div class="field-row">' + fieldNum("e-qty", "Quantity", qtyOf(rec)) + '<div class="field"></div>' + "</div>" +
-      '<div class="field"><label>Status</label><div class="seg" id="e-status"><button type="button" data-v="keep" class="' + (rec.status!=="donate"?"on":"") + '">Keeping</button><button type="button" data-v="donate" class="' + (rec.status==="donate"?"on":"") + '">To donate</button></div></div>' +
+      '<div class="field"><label>Status</label><select id="e-istatus">' +
+        '<option value="keep"' + ((rec.status||"keep")==="keep"?" selected":"") + '>In wardrobe</option>' +
+        '<option value="sell"' + (rec.status==="sell"?" selected":"") + '>For sale</option>' +
+        '<option value="donate"' + (rec.status==="donate"?" selected":"") + '>To donate</option>' +
+        '<option value="gone"' + (rec.status==="gone"?" selected":"") + '>Decommissioned</option>' +
+      "</select></div>" +
+      fieldText("e-saleprice", "Sale price (" + (state.settings.currency || "£") + ") — when selling", rec.salePrice || "") +
       linkImageFields(rec) +
       fieldArea("e-notes", "Notes", rec.notes);
   } else if (type === "need") {
@@ -1176,6 +1274,7 @@ function openEditor(type, id) {
     body =
       fieldText("e-name", "Name", rec.name) +
       fieldText("e-brand", "Brand", rec.brand) +
+      '<div class="field"><label>For which gap</label>' + gapSelect("e-gap", rec.gapId || "") + "</div>" +
       '<div class="field-row">' +
         fieldSelect("e-cat", "Category", allCategories(), rec.category, true) +
         fieldText("e-price", "Price", rec.price) +
@@ -1242,13 +1341,18 @@ function saveEditor(form) {
     rec.quantity = Math.max(1, parseInt(v("e-qty"), 10) || 1);
     rec.url = v("e-url");
     rec.image = v("e-image");
-    const segOn = document.querySelector("#e-status button.on");
-    rec.status = segOn ? segOn.dataset.v : (rec.status || "keep");
+    rec.salePrice = parsePrice(v("e-saleprice"));
+    const newStatus = v("e-istatus") || "keep";
+    if (newStatus === "gone") { if (rec.status !== "gone") rec.outcome = rec.outcome || "retired"; }
+    else delete rec.outcome;
+    rec.status = newStatus;
   } else if (type === "need") {
     rec.priority = v("e-pri");
     rec.quantity = Math.max(1, parseInt(v("e-qty"), 10) || 1);
   } else {
     rec.brand = v("e-brand");
+    rec.gapId = v("e-gap");
+    { const g = rec.gapId ? find("need", rec.gapId) : null; if (g) rec.category = g.category; }   // option inherits its gap's category
     rec.price = parsePrice(v("e-price"));
     rec.url = v("e-url");
     rec.image = v("e-image");
@@ -1420,6 +1524,27 @@ function closeLightbox() {
   if (lb) { lb.classList.remove("show"); lb.innerHTML = ""; }
 }
 
+/* ---------- Popover (small anchored menu) ---------- */
+function openPopover(html, anchor) {
+  const p = document.getElementById("popover");
+  if (!p) return;
+  p.innerHTML = html;
+  p.classList.add("show");
+  const r = anchor.getBoundingClientRect();
+  const w = p.offsetWidth || 160;
+  let left = Math.min(window.innerWidth - w - 8, Math.max(8, r.right - w));
+  p.style.left = left + "px";
+  p.style.top = (r.bottom + 6) + "px";
+}
+function closePopover() { const p = document.getElementById("popover"); if (p) { p.classList.remove("show"); p.innerHTML = ""; } }
+function openOffloadMenu(id, anchor) {
+  openPopover(
+    '<button type="button" data-action="offload-as" data-id="' + id + '" data-as="sell">' + SVG_TAG + " For sale</button>" +
+    '<button type="button" data-action="offload-as" data-id="' + id + '" data-as="donate">' + SVG_HEART + " To donate</button>",
+    anchor
+  );
+}
+
 /* ---------- Actions ---------- */
 function addItem() {
   const name = val("inv-name"); if (!name) return;
@@ -1430,36 +1555,82 @@ function addItem() {
   refresh();
   focus("inv-name");
 }
-function addWish() {
-  const name = val("wish-name"); if (!name) return;
-  const cat = cleanCat(val("wish-cat"));
-  if (ui.wishlist.addType === "need") {
-    state.needs.push({ id: uid(), name, category: cat, priority: val("wish-pri") || "Medium", quantity: Math.max(1, parseInt(val("wish-need-qty"), 10) || 1), notes: "", done: false, createdAt: Date.now() });
+// Inventory add bar dispatches to an item or a gap depending on the toggle.
+function addInv() {
+  if (ui.inv.addType === "gap") {
+    const name = val("inv-name"); if (!name) return;
+    state.needs.push({ id: uid(), name, category: cleanCat(val("inv-cat")), priority: val("inv-gap-pri") || "Medium", quantity: Math.max(1, parseInt(val("inv-qty"), 10) || 1), notes: "", done: false, createdAt: Date.now() });
+    save();
+    setVal("inv-name", ""); setVal("inv-qty", "1");
+    refresh();
+    focus("inv-name");
   } else {
-    state.consider.push({ id: uid(), name, category: cat, brand: val("wish-brand"), price: parsePrice(val("wish-price")), url: val("wish-link"), image: pendingImg.wish || "", priority: "Medium", status: "Considering", notes: "", createdAt: Date.now() });
+    addItem();
   }
+}
+// Wishlist adds options, tied to a gap (or loose).
+function addOption() {
+  const name = val("wish-name"); if (!name) return;
+  const gapId = val("wish-gap");
+  const gap = gapId ? find("need", gapId) : null;
+  const cat = gap ? gap.category : cleanCat(val("wish-cat"));
+  state.consider.push({ id: uid(), name, category: cat, gapId: gapId, brand: val("wish-brand"), price: parsePrice(val("wish-price")), url: val("wish-link"), image: pendingImg.wish || "", priority: gap ? (gap.priority || "Medium") : "Medium", status: "Considering", notes: "", createdAt: Date.now() });
   save();
-  setVal("wish-name", ""); setVal("wish-price", ""); setVal("wish-brand", ""); setVal("wish-need-qty", "1"); setVal("wish-link", "");
-  pendingImg.wish = ""; renderThumbPreview("wish");
+  setVal("wish-name", ""); setVal("wish-price", ""); setVal("wish-brand", ""); setVal("wish-link", "");
+  pendingImg.wish = ""; renderThumbPreview("wish");   // keep the gap selected for rapid adding
   refresh();
   focus("wish-name");
 }
-function needToConsider(id) {
-  const n = find("need", id); if (!n) return;
-  state.consider.push({ id: uid(), name: n.name, category: n.category, price: "", url: "", priority: n.priority || "Medium", status: "Considering", notes: "For gap: " + n.name, createdAt: Date.now() });
-  save();
-  ui.tab = "wishlist";
-  ui.wishlist.type = "";      // make sure options are visible
-  ui.wishlist.cat = n.category; // focus this category so the gap + its new option sit together
-  renderAll();
+function addOptionFor(id) { ui.wishlist.addGap = id; renderWishlist(); focus("wish-name"); }
+function gapToWishlist(id) { ui.tab = "wishlist"; ui.wishlist.addGap = id; ui.wishlist.cat = ""; renderAll(); focus("wish-name"); }
+function fillGap(id) {
+  const g = find("need", id); if (!g) return;
+  g.done = true;
+  save(); refresh();
+  showToast("Gap filled — “" + (g.name || "") + "”", "Undo", () => { g.done = false; save(); refresh(); });
 }
+// Buying an option converts it into a wardrobe item and fills its gap.
+// Triggered by the "add to wardrobe" button OR by setting the option's status to "Bought".
 function considerToWardrobe(id) {
   const c = find("consider", id); if (!c) return;
-  state.items.push({ id: uid(), name: c.name, category: c.category, colour: "", brand: c.brand || "", season: "All-season", status: "keep", quantity: 1, url: c.url || "", image: c.image || "", notes: c.notes || "", createdAt: Date.now() });
+  const prevStatus = c.status;
+  // Already converted (item still exists)? Just ensure it's marked bought — never duplicate.
+  if (c.itemId && state.items.find(i => i.id === c.itemId)) {
+    if (c.status !== "Bought") { c.status = "Bought"; save(); refresh(); }
+    return;
+  }
+  const itemId = uid();
+  state.items.push({ id: itemId, name: c.name, category: c.category, colour: "", brand: c.brand || "", season: "All-season", status: "keep", quantity: 1, url: c.url || "", image: c.image || "", notes: c.notes || "", createdAt: Date.now() });
+  c.itemId = itemId;
   c.status = "Bought";
+  let filledGap = null;
+  if (c.gapId) { const g = find("need", c.gapId); if (g && !g.done) { g.done = true; filledGap = g; } }
   save();
-  ui.tab = "inventory";
-  renderAll();
+  refresh();
+  showToast("Added to your wardrobe" + (filledGap ? " · gap filled ✓" : ""), "Undo", () => {
+    state.items = state.items.filter(i => i.id !== itemId);
+    c.itemId = ""; c.status = prevStatus;
+    if (filledGap) filledGap.done = false;
+    save(); refresh();
+  });
+}
+// Move an item between lifecycle stages (keep / donate / sell / gone) with undo.
+function moveItem(id, status, msg) {
+  const i = find("item", id); if (!i) return;
+  const prev = i.status || "keep";
+  const prevOutcome = i.outcome;
+  i.status = status;
+  if (status !== "gone") delete i.outcome;
+  save(); refresh();
+  showToast(msg, "Undo", () => { i.status = prev; if (prevOutcome) i.outcome = prevOutcome; else delete i.outcome; save(); refresh(); });
+}
+function decommission(id) {
+  const i = find("item", id); if (!i) return;
+  const prev = i.status || "keep";
+  i.outcome = i.status === "sell" ? "sold" : i.status === "donate" ? "donated" : "retired";
+  i.status = "gone";
+  save(); refresh();
+  showToast("Decommissioned — “" + (i.name || "") + "”", "Undo", () => { i.status = prev; delete i.outcome; save(); refresh(); });
 }
 function arrFor(type) { return type === "item" ? state.items : type === "need" ? state.needs : state.consider; }
 function deleteRec(type, id) {
@@ -1534,8 +1705,8 @@ function resetData() {
 /* ---------- Event wiring (delegated) ---------- */
 document.addEventListener("submit", e => {
   const f = e.target;
-  if (f.id === "form-inv") { e.preventDefault(); addItem(); }
-  else if (f.id === "form-wish") { e.preventDefault(); addWish(); }
+  if (f.id === "form-inv") { e.preventDefault(); addInv(); }
+  else if (f.id === "form-wish") { e.preventDefault(); addOption(); }
   else if (f.id === "form-edit") { e.preventDefault(); saveEditor(f); }
   else if (f.id === "form-cat") {
     e.preventDefault();
@@ -1550,6 +1721,8 @@ document.addEventListener("submit", e => {
 });
 
 document.addEventListener("click", e => {
+  // Dismiss the popover on any click outside it (the offload button reopens a fresh one).
+  if (!e.target.closest("#popover")) closePopover();
   // Lightbox: clicking it closes; clicking any thumbnail opens it big.
   if (e.target.closest("#lightbox")) { closeLightbox(); return; }
   const thumbEl = e.target.closest(".rthumb, .thumb-preview, .icard-img");
@@ -1564,12 +1737,9 @@ document.addEventListener("click", e => {
   const segBtn = e.target.closest("#e-status button");
   if (segBtn) { segBtn.parentElement.querySelectorAll("button").forEach(b => b.classList.remove("on")); segBtn.classList.add("on"); return; }
 
-  // wishlist add-type toggle (Gap / Option)
-  const at = e.target.closest("#wish-addtype button");
-  if (at) { if (ui.wishlist.addType !== at.dataset.t) { ui.wishlist.addType = at.dataset.t; renderWishlist(); } return; }
-  // wishlist type filter (All / Gaps / Options)
-  const wt = e.target.closest("#wish-type button");
-  if (wt) { ui.wishlist.type = wt.dataset.t; renderWishlist(); return; }
+  // inventory add-type toggle (Item / Gap)
+  const iat = e.target.closest("#inv-addtype button");
+  if (iat) { if (ui.inv.addType !== iat.dataset.t) { ui.inv.addType = iat.dataset.t; renderInventory(); } return; }
 
   const actEl = e.target.closest("[data-action]");
   if (!actEl) {
@@ -1592,9 +1762,16 @@ document.addEventListener("click", e => {
     case "rename-cat": renameCustomCategory(actEl.dataset.cat); break;
     case "fetch-link": fetchLinkInto(actEl.dataset.for); break;
     case "upload-img": pickImageFor(actEl.dataset.for); break;
-    case "toggle-donate": { const i = find("item", id); if (i) { i.status = i.status === "donate" ? "keep" : "donate"; save(); refresh(); } break; }
+    case "to-selling": moveItem(id, "donate", "Moved to Selling/Donating"); break;
+    case "offload-menu": openOffloadMenu(id, actEl); break;
+    case "offload-as": closePopover(); moveItem(id, actEl.dataset.as, "Moved to Selling/Donating (" + (actEl.dataset.as === "sell" ? "for sale" : "to donate") + ")"); break;
+    case "sell-toggle": { const i = find("item", id); if (i) { i.status = i.status === "sell" ? "donate" : "sell"; save(); refresh(); } break; }
+    case "decommission": decommission(id); break;
+    case "restore-keep": moveItem(id, "keep", "Back in your wardrobe"); break;
     case "toggle-need": { const n = find("need", id); if (n) { n.done = !n.done; save(); refresh(); } break; }
-    case "need-to-consider": needToConsider(id); break;
+    case "gap-options": gapToWishlist(id); break;
+    case "add-option-for": addOptionFor(id); break;
+    case "fill-gap": fillGap(id); break;
     case "consider-to-wardrobe": considerToWardrobe(id); break;
     case "edit": openEditor(type, id); break;
     case "delete": deleteRec(type, id); break;
@@ -1612,8 +1789,14 @@ document.addEventListener("change", e => {
   if (t.id === "inv-status") { ui.inv.status = t.value; fillInventory(); }
   else if (t.id === "inv-sort") { ui.inv.sort = t.value; fillInventory(); }
   else if (t.id === "wish-sort") { ui.wishlist.sort = t.value; fillWishlist(); }
+  else if (t.id === "wish-gap") { ui.wishlist.addGap = t.value; const wrap = document.getElementById("wish-cat-wrap"); if (wrap) wrap.style.display = t.value ? "none" : ""; }
+  else if (t.classList && t.classList.contains("sale-price")) { const i = find("item", t.dataset.id); if (i) { i.salePrice = parsePrice(t.value); save(); renderStats(); renderSelling(); } }
   else if (t.dataset && t.dataset.action === "consider-status") {
-    const c = find("consider", t.dataset.id); if (c) { c.status = t.value; save(); refresh(); }
+    const c = find("consider", t.dataset.id);
+    if (c) {
+      if (t.value === "Bought") { considerToWardrobe(c.id); }   // marking Bought converts it to a wardrobe item
+      else { c.status = t.value; save(); refresh(); }
+    }
   }
   else if (t.id === "file-input" && t.files && t.files[0]) { handleImport(t.files[0]); t.value = ""; }
   else if (t.id === "cur-input") { state.settings.currency = t.value.trim() || "£"; save(); refresh(); }
@@ -1642,7 +1825,7 @@ document.addEventListener("paste", e => {
       const file = items[i].getAsFile();
       if (!file) return;
       const target = document.querySelector(".modal-backdrop") ? "e" : (ui.tab === "inventory" ? "inv" : "wish");
-      if (target === "wish" && ui.wishlist.addType !== "consider") { showToast("Switch the add toggle to ‘Option’ to attach an image", null); return; }
+      if (target === "inv" && ui.inv.addType === "gap") { showToast("Switch the add toggle to ‘Item’ to attach an image", null); return; }
       e.preventDefault();
       handleImageFile(file, target);
       return;
@@ -1658,7 +1841,7 @@ document.getElementById("menu-toggle").addEventListener("click", e => {
 });
 
 document.addEventListener("keydown", e => {
-  if (e.key === "Escape") { closeLightbox(); closeEditor(); document.getElementById("menu").classList.remove("open"); hideToast(); return; }
+  if (e.key === "Escape") { closePopover(); closeLightbox(); closeEditor(); document.getElementById("menu").classList.remove("open"); hideToast(); return; }
   if (e.key === "Enter" && (e.target.id === "inv-link" || e.target.id === "wish-link")) { e.preventDefault(); fetchLinkInto(e.target.id === "inv-link" ? "inv" : "wish"); return; }
   const tag = (e.target.tagName || "").toLowerCase();
   if (tag === "input" || tag === "textarea" || tag === "select" || e.target.isContentEditable) return;
@@ -1668,6 +1851,8 @@ document.addEventListener("keydown", e => {
   else if (e.key === "n" || e.key === "N") { e.preventDefault(); focus(ui.tab === "inventory" ? "inv-name" : "wish-name"); }
   else if (e.key === "1") { ui.tab = "inventory"; renderMain(); window.scrollTo(0, 0); }
   else if (e.key === "2") { ui.tab = "wishlist"; renderMain(); window.scrollTo(0, 0); }
+  else if (e.key === "3") { ui.tab = "selling"; renderMain(); window.scrollTo(0, 0); }
+  else if (e.key === "4") { ui.tab = "gone"; renderMain(); window.scrollTo(0, 0); }
 });
 
 /* ---------- Drag-to-reorder (pointer-based; works with mouse & touch) ---------- */
