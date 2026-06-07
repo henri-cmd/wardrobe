@@ -1,0 +1,1209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wardrobe</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0b0c0e;
+  --surface: #141619;
+  --surface2: #1b1e22;
+  --surface3: #24272d;
+  --border: rgba(255,255,255,0.07);
+  --border2: rgba(255,255,255,0.13);
+  --text: #e8e9ea;
+  --muted: #6b7280;
+  --muted2: #9ca3af;
+  --accent: #c8f05a;
+  --accent-dim: rgba(200,240,90,0.12);
+  --accent-border: rgba(200,240,90,0.35);
+  --green: #4ade80;
+  --green-dim: rgba(74,222,128,0.1);
+  --green-border: rgba(74,222,128,0.28);
+  --amber: #fbbf24;
+  --amber-dim: rgba(251,191,36,0.1);
+  --amber-border: rgba(251,191,36,0.28);
+  --red: #f87171;
+  --red-dim: rgba(248,113,113,0.1);
+  --red-border: rgba(248,113,113,0.28);
+  --blue: #60a5fa;
+  --blue-dim: rgba(96,165,250,0.12);
+  --blue-border: rgba(96,165,250,0.28);
+  --purple: #c084fc;
+  --purple-dim: rgba(192,132,252,0.12);
+  --radius: 12px;
+  --radius-sm: 8px;
+  --mono: 'DM Mono', ui-monospace, monospace;
+  --sans: 'DM Sans', -apple-system, system-ui, sans-serif;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 13px;
+  line-height: 1.55;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+body::before {
+  content: "";
+  position: fixed; inset: 0;
+  background:
+    radial-gradient(1100px 600px at 12% -8%, rgba(200,240,90,0.05), transparent 60%),
+    radial-gradient(900px 500px at 100% 0%, rgba(96,165,250,0.045), transparent 55%);
+  pointer-events: none; z-index: 0;
+}
+.wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px 80px; position: relative; z-index: 1; }
+
+/* Header */
+header {
+  position: sticky; top: 0; z-index: 30;
+  backdrop-filter: blur(12px);
+  background: rgba(11,12,14,0.82);
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 22px;
+}
+.head-inner { max-width: 1080px; margin: 0 auto; padding: 16px 20px; display: flex; align-items: center; gap: 14px; }
+.brand { display: flex; align-items: baseline; gap: 12px; flex: 1; min-width: 0; }
+.logo {
+  font-weight: 700; font-size: 18px; letter-spacing: -0.02em;
+  display: inline-flex; align-items: center; gap: 9px;
+}
+.logo .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 14px var(--accent); }
+.tagline { color: var(--muted); font-size: 11.5px; font-family: var(--mono); letter-spacing: 0.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* Settings menu */
+.menu-wrap { position: relative; }
+.icon-btn {
+  background: var(--surface2); border: 1px solid var(--border2); color: var(--muted2);
+  width: 34px; height: 34px; border-radius: var(--radius-sm); cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center; transition: .15s;
+}
+.icon-btn:hover { color: var(--text); border-color: var(--accent-border); }
+.menu {
+  position: absolute; right: 0; top: 42px; width: 240px;
+  background: var(--surface); border: 1px solid var(--border2); border-radius: var(--radius);
+  padding: 8px; box-shadow: 0 20px 50px rgba(0,0,0,0.55); display: none;
+}
+.menu.open { display: block; }
+.menu-row { display: flex; align-items: center; gap: 8px; padding: 8px; }
+.menu-row label { color: var(--muted2); font-size: 11px; flex: 1; }
+.menu-btn {
+  width: 100%; text-align: left; background: transparent; border: none; color: var(--text);
+  padding: 9px 8px; border-radius: var(--radius-sm); cursor: pointer; font-size: 12.5px;
+  display: flex; align-items: center; gap: 9px; transition: .12s;
+}
+.menu-btn:hover { background: var(--surface2); }
+.menu-btn.danger { color: var(--red); }
+.menu-sep { height: 1px; background: var(--border); margin: 6px 4px; }
+.cur-input {
+  width: 56px; background: var(--surface2); border: 1px solid var(--border2); color: var(--text);
+  border-radius: 6px; padding: 5px 8px; font-family: var(--mono); text-align: center;
+}
+
+/* Stats */
+.stats { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 22px; }
+.stat {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 13px 14px; position: relative; overflow: hidden;
+}
+.stat .label { color: var(--muted); font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.07em; font-weight: 500; }
+.stat .val { font-family: var(--mono); font-size: 24px; font-weight: 500; margin-top: 4px; letter-spacing: -0.02em; }
+.stat .val.accent { color: var(--accent); }
+.stat .val.red { color: var(--red); }
+.stat .val.blue { color: var(--blue); }
+.stat .val.amber { color: var(--amber); }
+
+/* Tabs */
+.tabs { display: flex; gap: 4px; margin-bottom: 20px; border-bottom: 1px solid var(--border); }
+.tab {
+  background: transparent; border: none; color: var(--muted2); cursor: pointer;
+  padding: 11px 16px; font-size: 13px; font-weight: 500; font-family: var(--sans);
+  border-bottom: 2px solid transparent; margin-bottom: -1px; transition: .15s;
+  display: inline-flex; align-items: center; gap: 8px;
+}
+.tab:hover { color: var(--text); }
+.tab.active { color: var(--text); border-bottom-color: var(--accent); }
+.tab .count {
+  font-family: var(--mono); font-size: 11px; background: var(--surface3); color: var(--muted2);
+  padding: 1px 7px; border-radius: 20px; min-width: 20px; text-align: center;
+}
+.tab.active .count { background: var(--accent-dim); color: var(--accent); }
+
+/* Forms */
+.quickbar {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 12px; margin-bottom: 16px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center;
+}
+.quickbar .grow { flex: 1; min-width: 150px; }
+input, select, textarea {
+  background: var(--surface2); border: 1px solid var(--border2); color: var(--text);
+  border-radius: var(--radius-sm); padding: 9px 11px; font-size: 13px; font-family: var(--sans);
+  outline: none; transition: .15s; width: 100%;
+}
+input::placeholder, textarea::placeholder { color: var(--muted); }
+input:focus, select:focus, textarea:focus { border-color: var(--accent-border); background: var(--surface3); }
+select { cursor: pointer; appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='%239ca3af' d='M5 6L0 0h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 11px center; padding-right: 28px; }
+.btn {
+  background: var(--accent); color: #0b0c0e; border: none; border-radius: var(--radius-sm);
+  padding: 9px 16px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: var(--sans);
+  white-space: nowrap; transition: .15s; display: inline-flex; align-items: center; gap: 7px;
+}
+.btn:hover { filter: brightness(1.08); }
+.btn.ghost { background: var(--surface2); color: var(--text); border: 1px solid var(--border2); }
+.btn.ghost:hover { border-color: var(--accent-border); filter: none; }
+.btn.sm { padding: 6px 11px; font-size: 12px; }
+
+/* Filter row */
+.filters { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 14px; }
+.filters .search { flex: 1; min-width: 160px; }
+.filters select { width: auto; min-width: 120px; }
+.toggle-pill {
+  display: inline-flex; align-items: center; gap: 7px; white-space: nowrap;
+  background: var(--surface2); border: 1px solid var(--border2); color: var(--muted2);
+  border-radius: var(--radius-sm); padding: 9px 13px; font-size: 13px; font-weight: 500;
+  font-family: var(--sans); cursor: pointer; transition: .14s;
+}
+.toggle-pill:hover { color: var(--text); border-color: var(--accent-border); }
+.toggle-pill.on { background: var(--accent-dim); border-color: var(--accent-border); color: var(--accent); }
+.toggle-pill .tp-count { font-family: var(--mono); font-size: 11px; background: var(--surface3); color: var(--muted2); padding: 1px 7px; border-radius: 20px; }
+.toggle-pill.on .tp-count { background: rgba(200,240,90,0.18); color: var(--accent); }
+
+/* Category distribution chips */
+.cats { display: flex; gap: 7px; flex-wrap: wrap; margin-bottom: 16px; }
+.cat-chip {
+  position: relative; border: 1px solid var(--border2); background: var(--surface);
+  border-radius: 20px; padding: 5px 12px; cursor: pointer; font-size: 12px; color: var(--muted2);
+  display: inline-flex; align-items: center; gap: 7px; overflow: hidden; transition: .14s; user-select: none;
+}
+.cat-chip .bar { position: absolute; left: 0; top: 0; bottom: 0; background: var(--accent-dim); z-index: 0; }
+.cat-chip span { position: relative; z-index: 1; }
+.cat-chip .n { font-family: var(--mono); color: var(--text); }
+.cat-chip:hover { border-color: var(--accent-border); color: var(--text); }
+.cat-chip.active { border-color: var(--accent-border); color: var(--text); background: var(--accent-dim); }
+
+/* Lists */
+.group-head {
+  display: flex; align-items: baseline; gap: 10px; margin: 18px 4px 9px;
+}
+.group-head:first-child { margin-top: 4px; }
+.group-head h3 { font-size: 13px; font-weight: 600; letter-spacing: -0.01em; }
+.group-head .gc { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+.group-head .gc-need { font-family: var(--mono); font-size: 11px; color: var(--accent); }
+.group-head .gc-opt { font-family: var(--mono); font-size: 11px; color: var(--blue); }
+.group-head .gc-own { font-family: var(--mono); font-size: 11px; color: var(--muted2); cursor: pointer; border-bottom: 1px dashed var(--border2); }
+.group-head .gc-own:hover { color: var(--text); border-color: var(--accent-border); }
+
+.row {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 12px 14px; display: flex; align-items: center; gap: 13px; margin-bottom: 7px; transition: .14s;
+}
+.row:hover { border-color: var(--border2); background: var(--surface2); }
+.row.donate { opacity: 0.62; }
+.row.need { border-style: dashed; border-color: var(--border2); background: rgba(200,240,90,0.03); }
+.row.need:hover { border-color: var(--accent-border); background: var(--accent-dim); }
+.row.option { flex-wrap: wrap; }
+.row.option .main { min-width: 150px; }
+.row.option.closed { opacity: 0.55; }
+.opt-dot { width: 11px; height: 11px; border-radius: 50%; flex-shrink: 0; background: var(--muted); border: 1px solid rgba(255,255,255,0.2); }
+.opt-dot.considering { background: var(--blue); }
+.opt-dot.shortlisted { background: var(--accent); }
+.opt-dot.bought { background: var(--green); }
+.opt-dot.passed { background: var(--muted); }
+.row-price { font-family: var(--mono); font-size: 12.5px; color: var(--accent); white-space: nowrap; flex-shrink: 0; }
+.opt-status { width: auto; min-width: 116px; padding: 6px 26px 6px 9px; font-size: 11.5px; flex-shrink: 0; }
+.needtag { font-size: 9.5px; font-family: var(--mono); text-transform: uppercase; letter-spacing: 0.06em; color: var(--accent); border: 1px solid var(--accent-border); background: var(--accent-dim); padding: 1px 6px; border-radius: 20px; vertical-align: middle; margin-left: 5px; }
+.swatch { width: 17px; height: 17px; border-radius: 50%; flex-shrink: 0; border: 1px solid rgba(255,255,255,0.22); box-shadow: inset 0 0 6px rgba(0,0,0,0.25); }
+.row .main { flex: 1; min-width: 0; }
+.row .name { font-weight: 600; font-size: 13.5px; letter-spacing: -0.01em; }
+.row .name.struck { text-decoration: line-through; color: var(--muted2); }
+.row .meta { color: var(--muted); font-size: 11.5px; margin-top: 1px; font-family: var(--mono); display: flex; gap: 8px; flex-wrap: wrap; }
+.row .meta .sep { opacity: 0.5; }
+.row .acts { display: flex; gap: 5px; align-items: center; opacity: 0; transition: .14s; }
+.row:hover .acts { opacity: 1; }
+@media (hover: none) { .row .acts { opacity: 1; } }
+.act {
+  background: var(--surface3); border: 1px solid var(--border); color: var(--muted2);
+  width: 28px; height: 28px; border-radius: 7px; cursor: pointer; display: inline-flex;
+  align-items: center; justify-content: center; transition: .13s; flex-shrink: 0;
+}
+.act:hover { color: var(--text); border-color: var(--border2); }
+.act.del:hover { color: var(--red); border-color: var(--red-border); background: var(--red-dim); }
+.act.donate.on { color: var(--amber); border-color: var(--amber-border); background: var(--amber-dim); }
+
+/* Tags / pills */
+.pill {
+  font-size: 10.5px; font-family: var(--mono); padding: 2px 8px; border-radius: 20px;
+  border: 1px solid var(--border2); color: var(--muted2); white-space: nowrap; letter-spacing: 0.01em;
+}
+.pill.high { color: var(--red); border-color: var(--red-border); background: var(--red-dim); }
+.pill.medium { color: var(--amber); border-color: var(--amber-border); background: var(--amber-dim); }
+.pill.low { color: var(--muted2); }
+.pill.donate { color: var(--amber); border-color: var(--amber-border); background: var(--amber-dim); }
+.pill.considering { color: var(--blue); border-color: var(--blue-border); background: var(--blue-dim); }
+.pill.shortlisted { color: var(--accent); border-color: var(--accent-border); background: var(--accent-dim); }
+.pill.bought { color: var(--green); border-color: var(--green-border); background: var(--green-dim); }
+.pill.passed { color: var(--muted); }
+
+/* Needs checklist */
+.check {
+  width: 19px; height: 19px; border-radius: 6px; border: 1.5px solid var(--border2);
+  cursor: pointer; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; transition: .13s;
+}
+.check:hover { border-color: var(--accent-border); }
+.check.on { background: var(--accent); border-color: var(--accent); color: #0b0c0e; }
+.check.need { border-style: dashed; border-color: var(--accent-border); }
+.check.need:hover { background: var(--accent-dim); }
+
+/* Consider cards */
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 11px; }
+.card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 14px; display: flex; flex-direction: column; gap: 10px; transition: .14s;
+}
+.card:hover { border-color: var(--border2); }
+.card .top { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+.card .cname { font-weight: 600; font-size: 14px; letter-spacing: -0.01em; }
+.card .ccat { color: var(--muted); font-size: 11px; font-family: var(--mono); margin-top: 2px; }
+.card .ccat .catlink { color: var(--muted2); cursor: pointer; border-bottom: 1px dashed var(--border2); transition: .13s; }
+.card .ccat .catlink:hover { color: var(--text); border-color: var(--accent-border); }
+.card .ccat .own { color: var(--muted); }
+.card .ccat .own.gap { color: var(--accent); }
+.card .ccat .own.donate { color: var(--amber); }
+.card .ccat .dotsep { opacity: 0.45; }
+.card .price { font-family: var(--mono); font-size: 15px; color: var(--accent); white-space: nowrap; }
+.card .cnotes { color: var(--muted2); font-size: 12px; line-height: 1.5; }
+.card .crow { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.card .crow select { width: auto; padding: 5px 26px 5px 9px; font-size: 11.5px; }
+.card .spread { flex: 1; }
+.linkbtn {
+  display: inline-flex; align-items: center; gap: 6px; color: var(--blue); text-decoration: none;
+  font-size: 11.5px; font-family: var(--mono); padding: 5px 9px; border: 1px solid var(--blue-border);
+  background: var(--blue-dim); border-radius: 6px; transition: .13s;
+}
+.linkbtn:hover { filter: brightness(1.15); }
+
+/* Empty states */
+.empty {
+  text-align: center; padding: 54px 20px; color: var(--muted);
+  border: 1px dashed var(--border2); border-radius: var(--radius); background: rgba(255,255,255,0.012);
+}
+.empty .ico { font-size: 30px; margin-bottom: 12px; opacity: 0.7; }
+.empty h4 { color: var(--muted2); font-weight: 600; font-size: 14px; margin-bottom: 5px; }
+.empty p { font-size: 12.5px; max-width: 340px; margin: 0 auto; line-height: 1.6; }
+
+/* Intro card */
+.intro {
+  background: linear-gradient(135deg, var(--accent-dim), transparent 70%);
+  border: 1px solid var(--accent-border); border-radius: var(--radius); padding: 16px 18px;
+  margin-bottom: 18px; display: flex; gap: 14px; align-items: flex-start;
+}
+.intro .body { flex: 1; }
+.intro h4 { font-size: 13.5px; margin-bottom: 5px; }
+.intro p { color: var(--muted2); font-size: 12.5px; line-height: 1.6; }
+.intro p b { color: var(--text); font-weight: 600; }
+
+/* Modal */
+.modal-backdrop {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(3px);
+  z-index: 60; display: flex; align-items: center; justify-content: center; padding: 20px;
+}
+.modal {
+  background: var(--surface); border: 1px solid var(--border2); border-radius: 14px;
+  width: 100%; max-width: 440px; max-height: 88vh; overflow-y: auto;
+  box-shadow: 0 30px 80px rgba(0,0,0,0.6);
+}
+.modal-head { padding: 18px 20px 0; display: flex; justify-content: space-between; align-items: center; }
+.modal-head h3 { font-size: 15px; font-weight: 600; }
+.modal-body { padding: 16px 20px 20px; display: flex; flex-direction: column; gap: 12px; }
+.field { display: flex; flex-direction: column; gap: 5px; }
+.field label { font-size: 11px; color: var(--muted2); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 500; }
+.field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.modal-foot { display: flex; gap: 9px; justify-content: flex-end; padding-top: 4px; }
+textarea { resize: vertical; min-height: 60px; }
+
+.seg { display: inline-flex; background: var(--surface2); border: 1px solid var(--border2); border-radius: var(--radius-sm); padding: 3px; gap: 3px; }
+.seg button { background: transparent; border: none; color: var(--muted2); padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 12px; font-family: var(--sans); transition: .13s; }
+.seg button.on { background: var(--surface3); color: var(--text); }
+
+/* Toast (undo) */
+.toast {
+  position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%) translateY(20px);
+  background: var(--surface3); border: 1px solid var(--border2); color: var(--text);
+  border-radius: 10px; padding: 11px 14px; display: flex; align-items: center; gap: 14px;
+  box-shadow: 0 14px 40px rgba(0,0,0,0.5); z-index: 80; font-size: 12.5px;
+  opacity: 0; pointer-events: none; transition: opacity .18s, transform .18s; max-width: calc(100vw - 32px);
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); pointer-events: auto; }
+.toast span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.toast-btn { background: transparent; border: none; color: var(--accent); font-weight: 600; cursor: pointer; font-family: var(--sans); font-size: 12.5px; padding: 2px 4px; flex-shrink: 0; }
+.toast-btn:hover { text-decoration: underline; }
+
+/* Shortcuts hint in menu */
+.menu-hint { font-size: 10.5px; color: var(--muted); padding: 8px 8px 4px; line-height: 1.9; }
+.menu-hint kbd { font-family: var(--mono); background: var(--surface3); border: 1px solid var(--border2); border-radius: 4px; padding: 1px 5px; color: var(--muted2); font-size: 10px; }
+
+/* Responsive */
+@media (max-width: 720px) {
+  .stats { grid-template-columns: repeat(2, 1fr); }
+  .stat:last-child { grid-column: span 2; }
+  .tagline { display: none; }
+  .head-inner { padding: 13px 16px; }
+  .wrap { padding: 0 14px 60px; }
+}
+@media (max-width: 560px) {
+  .wrap { padding: 0 12px 64px; }
+  .quickbar { padding: 10px; gap: 7px; }
+  .filters { gap: 7px; }
+  .filters .search { min-width: 100%; }
+  .act { width: 32px; height: 32px; }
+  .row { padding: 11px 12px; gap: 11px; }
+  .row .acts { gap: 6px; }
+  .row.option .main { min-width: 120px; }
+  .opt-status { min-width: 108px; }
+  .stat .val { font-size: 21px; }
+  .field-row { grid-template-columns: 1fr; }
+  .group-head { flex-wrap: wrap; row-gap: 2px; }
+  .toast { left: 12px; right: 12px; bottom: 14px; transform: translateY(24px); max-width: none; }
+  .toast.show { transform: translateY(0); }
+}
+.hint { color: var(--muted); font-size: 11.5px; font-family: var(--mono); margin: 2px 4px 0; }
+.svg { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.svg.sm { width: 13px; height: 13px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="head-inner">
+    <div class="brand">
+      <span class="logo"><span class="dot"></span>Wardrobe</span>
+      <span class="tagline">take stock · find gaps · consider options</span>
+    </div>
+    <div class="menu-wrap">
+      <button class="icon-btn" id="menu-toggle" title="Settings &amp; data" aria-label="Settings">
+        <svg class="svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      </button>
+      <div class="menu" id="menu">
+        <div class="menu-row">
+          <label>Currency symbol</label>
+          <input class="cur-input" id="cur-input" maxlength="3" value="£">
+        </div>
+        <div class="menu-sep"></div>
+        <button class="menu-btn" data-action="export"><svg class="svg sm" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>Export backup (JSON)</button>
+        <button class="menu-btn" data-action="import"><svg class="svg sm" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg>Import backup</button>
+        <div class="menu-sep"></div>
+        <button class="menu-btn danger" data-action="reset"><svg class="svg sm" viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>Reset everything</button>
+        <div class="menu-sep"></div>
+        <div class="menu-hint"><kbd>/</kbd> search&nbsp;&nbsp;<kbd>n</kbd> new&nbsp;&nbsp;<kbd>1</kbd>/<kbd>2</kbd> tabs&nbsp;&nbsp;<kbd>esc</kbd> close</div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="stats" id="stats"></div>
+  <div class="tabs" id="tabs">
+    <button class="tab active" data-tab="inventory">Inventory <span class="count" id="c-inv">0</span></button>
+    <button class="tab" data-tab="wishlist">Wishlist <span class="count" id="c-wish">0</span></button>
+  </div>
+  <main id="main"></main>
+</div>
+
+<input type="file" id="file-input" accept="application/json" style="display:none">
+<div id="modal-root"></div>
+<div id="toast" class="toast"></div>
+
+<script>
+"use strict";
+
+/* ---------- Constants ---------- */
+const STORE_KEY = "wardrobe.v1";
+const CATEGORIES = [
+  "Tops & Tees","Shirts","Knitwear","Jackets & Coats","Trousers","Jeans",
+  "Shorts","Tailoring","Shoes","Activewear","Accessories","Underwear & Socks","Other"
+];
+const SEASONS = ["All-season","Spring","Summer","Autumn","Winter"];
+const PRIORITIES = ["High","Medium","Low"];
+const CONSIDER_STATUS = ["Considering","Shortlisted","Bought","Passed"];
+const COLOURS = {
+  white:"#f5f5f5", offwhite:"#efece3", cream:"#f3ead3", ecru:"#e8e0cf", ivory:"#f1ead9",
+  beige:"#e3d5b8", tan:"#d2a679", camel:"#c19a6b", khaki:"#b9b06a", olive:"#708238",
+  green:"#4a7c59", "forest green":"#284b34", "dark green":"#2f5440", sage:"#9caf88",
+  grey:"#9aa0a6", gray:"#9aa0a6", "light grey":"#c7ccd1", "light gray":"#c7ccd1",
+  "dark grey":"#5a5f66", "dark gray":"#5a5f66", charcoal:"#3a3d43", slate:"#5b6470",
+  black:"#1c1d20", navy:"#27364d", blue:"#3b6fb0", "light blue":"#9ec3e6", "sky blue":"#88b8e0",
+  "royal blue":"#2f5cc0", cobalt:"#2747b0", denim:"#5a7a9a", indigo:"#3b3b6d",
+  red:"#c0392b", burgundy:"#6d2c33", maroon:"#6d2c33", wine:"#5e2230",
+  pink:"#e0a6b6", "baby pink":"#f0c9d6", blush:"#e7bcc4", purple:"#7d5ba6", lilac:"#b9a6d6", lavender:"#c3b1de", lavender:"#c3b1de",
+  yellow:"#e3c050", mustard:"#cda434", orange:"#d2691e", rust:"#b7410e", terracotta:"#c66a4e",
+  brown:"#6b4f3a", chocolate:"#4b3621", "dark brown":"#3d2c20", taupe:"#b0a08f",
+  stone:"#cabfa8", oatmeal:"#ddd3bf", sand:"#dac9a6", silver:"#c9ccd1", gold:"#cda434",
+  teal:"#2c8c8c", mint:"#a8d5ba", coral:"#e58a76", mauve:"#a18497"
+};
+
+/* ---------- State ---------- */
+function blank() { return { items: [], needs: [], consider: [], settings: { currency: "£" }, onboarded: false }; }
+function normalize(d) {
+  if (!d || typeof d !== "object") return blank();
+  d.items = Array.isArray(d.items) ? d.items : [];
+  d.needs = Array.isArray(d.needs) ? d.needs : [];
+  d.consider = Array.isArray(d.consider) ? d.consider : [];
+  d.settings = d.settings || {};
+  if (!d.settings.currency) d.settings.currency = "£";
+  d.onboarded = !!d.onboarded;
+  return d;
+}
+function load() {
+  try { const raw = localStorage.getItem(STORE_KEY); if (raw) return normalize(JSON.parse(raw)); }
+  catch (e) { console.warn("load failed", e); }
+  return blank();
+}
+function save() { try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch (e) { console.warn("save failed", e); } }
+
+let state = load();
+
+const UI_KEY = "wardrobe.ui.v1";
+function defaultUi() {
+  return {
+    tab: "inventory",
+    inv: { q: "", cat: "", status: "", sort: "recent", showNeeds: false },
+    wishlist: { q: "", cat: "", type: "", sort: "priority", showClosed: false, addType: "need" }
+  };
+}
+function loadUi() {
+  const d = defaultUi();
+  try {
+    const raw = localStorage.getItem(UI_KEY);
+    if (raw) {
+      const s = JSON.parse(raw);
+      if (s && typeof s === "object") {
+        if (s.tab === "inventory" || s.tab === "wishlist") d.tab = s.tab;
+        if (s.inv) Object.assign(d.inv, s.inv);
+        if (s.wishlist) Object.assign(d.wishlist, s.wishlist);
+      }
+    }
+  } catch (e) { console.warn("ui load failed", e); }
+  return d;
+}
+function saveUi() { try { localStorage.setItem(UI_KEY, JSON.stringify(ui)); } catch (e) {} }
+let ui = loadUi();
+
+/* ---------- Helpers ---------- */
+function uid() {
+  try { if (crypto && crypto.randomUUID) return crypto.randomUUID(); } catch (e) {}
+  return "id-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 8);
+}
+function esc(s) {
+  return (s == null ? "" : String(s)).replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;" }[c]));
+}
+function money(n) {
+  const c = state.settings.currency || "£";
+  const v = Number(n) || 0;
+  const s = v % 1 === 0 ? v.toLocaleString() : v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return c + s;
+}
+function priClass(p) { return (p || "Low").toLowerCase(); }
+function priRank(p) { return p === "High" ? 0 : p === "Medium" ? 1 : 2; }
+function colourSwatch(name) {
+  if (!name) return "";
+  const key = String(name).trim().toLowerCase();
+  const hex = COLOURS[key];
+  const style = hex ? "background:" + hex : "background:linear-gradient(135deg,#4a4d53,#7a7f87)";
+  return '<span class="swatch" style="' + style + '" title="' + esc(name) + '"></span>';
+}
+function safeUrl(u) {
+  if (!u) return "";
+  u = String(u).trim();
+  if (!/^https?:\/\//i.test(u)) u = "https://" + u;
+  try { new URL(u); return u; } catch (e) { return ""; }
+}
+function opts(list, sel) {
+  return list.map(o => '<option value="' + esc(o) + '"' + (o === sel ? " selected" : "") + ">" + esc(o) + "</option>").join("");
+}
+function catSelect(id, sel, opts2) {
+  opts2 = opts2 || {};
+  const placeholder = opts2.placeholder || "Category…";
+  const all = opts2.all ? '<option value="">All categories</option>' : '<option value="" disabled' + (sel ? "" : " selected") + ">" + esc(placeholder) + "</option>";
+  return '<select id="' + id + '">' + all + opts(CATEGORIES, sel) + "</select>";
+}
+
+/* ---------- Stats ---------- */
+function renderStats() {
+  const items = state.items;
+  const donate = items.filter(i => i.status === "donate").length;
+  const needsOpen = state.needs.filter(n => !n.done).length;
+  const considering = state.consider.filter(c => c.status === "Considering" || c.status === "Shortlisted").length;
+  const shortlistSum = state.consider.filter(c => c.status === "Shortlisted").reduce((a, c) => a + (Number(c.price) || 0), 0);
+
+  document.getElementById("stats").innerHTML =
+    stat("Items owned", items.length, "") +
+    stat("To donate", donate, donate ? "amber" : "") +
+    stat("Needs open", needsOpen, needsOpen ? "blue" : "") +
+    stat("Considering", considering, "") +
+    stat("Shortlist", money(shortlistSum), "accent");
+
+  document.getElementById("c-inv").textContent = items.length;
+  // Wishlist count = open gaps + active options (considering / shortlisted)
+  const activeOpts = state.consider.filter(c => c.status === "Considering" || c.status === "Shortlisted").length;
+  document.getElementById("c-wish").textContent = needsOpen + activeOpts;
+}
+function stat(label, val, cls) {
+  return '<div class="stat"><div class="label">' + esc(label) + '</div><div class="val ' + cls + '">' + esc(val) + "</div></div>";
+}
+
+/* ---------- Inventory ---------- */
+function renderInventory() {
+  const showIntro = !state.onboarded && state.items.length === 0;
+  const intro = showIntro ? (
+    '<div class="intro"><div class="body">' +
+    "<h4>Welcome — let's simplify your wardrobe.</h4>" +
+    "<p>Start in <b>Inventory</b>: add everything you own so you can see it in one place. " +
+    "Use the <b>Wishlist</b> to note gaps and shortlist options to fill them — both sorted into the same categories. " +
+    "Tag anything you're ready to part with as <b>donate</b>. Everything saves automatically in this browser.</p>" +
+    '</div><button class="act del" data-action="dismiss-intro" title="Dismiss"><svg class="svg sm" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>'
+  ) : "";
+
+  const openNeedsCount = state.needs.filter(n => !n.done).length;
+
+  document.getElementById("main").innerHTML =
+    intro +
+    '<form class="quickbar" id="form-inv">' +
+      '<input class="grow" id="inv-name" placeholder="Item name (e.g. Oxford shirt)" autocomplete="off" required>' +
+      catSelect("inv-cat", "", { placeholder: "Category…" }) +
+      '<input id="inv-colour" placeholder="Colour" autocomplete="off" style="width:120px">' +
+      '<button class="btn" type="submit"><svg class="svg sm" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Add item</button>' +
+    "</form>" +
+    '<div class="cats" id="inv-cats"></div>' +
+    '<div class="filters">' +
+      '<input class="search" id="inv-q" placeholder="Search items…" autocomplete="off" value="' + esc(ui.inv.q) + '">' +
+      '<button type="button" id="inv-showneeds" class="toggle-pill' + (ui.inv.showNeeds ? " on" : "") + '" data-action="toggle-showneeds" title="Show the gaps you\'ve noted from Needs, slotted into each category">' + needsToggleHTML(openNeedsCount) + "</button>" +
+      '<select id="inv-status"><option value="">All items</option><option value="keep"' + (ui.inv.status==="keep"?" selected":"") + '>Keeping</option><option value="donate"' + (ui.inv.status==="donate"?" selected":"") + '>To donate</option></select>' +
+      '<select id="inv-sort"><option value="recent"' + (ui.inv.sort==="recent"?" selected":"") + '>Recently added</option><option value="name"' + (ui.inv.sort==="name"?" selected":"") + '>Name A–Z</option><option value="colour"' + (ui.inv.sort==="colour"?" selected":"") + '>Colour</option></select>' +
+    "</div>" +
+    '<div id="inv-list"></div>';
+  fillInventory();
+}
+
+function fillInventory() {
+  const f = ui.inv;
+  saveUi();
+
+  // keep the Needs toggle's count badge fresh (it lives in the shell, but open-need count can change in-place)
+  const tEl = document.getElementById("inv-showneeds");
+  if (tEl) tEl.innerHTML = needsToggleHTML(state.needs.filter(n => !n.done).length);
+
+  // category distribution chips (from full inventory)
+  const counts = {};
+  state.items.forEach(i => { counts[i.category] = (counts[i.category] || 0) + 1; });
+  const catList = CATEGORIES.filter(c => counts[c]).sort((a, b) => counts[b] - counts[a]);
+  const max = catList.length ? counts[catList[0]] : 1;
+  const chipsEl = document.getElementById("inv-cats");
+  if (chipsEl) {
+    chipsEl.innerHTML = catList.map(c => {
+      const pct = Math.round((counts[c] / max) * 100);
+      const active = f.cat === c ? " active" : "";
+      return '<div class="cat-chip' + active + '" data-action="filter-cat" data-cat="' + esc(c) + '">' +
+        '<span class="bar" style="width:' + pct + '%"></span>' +
+        "<span>" + esc(c) + '</span><span class="n">' + counts[c] + "</span></div>";
+    }).join("");
+  }
+
+  // filter
+  let items = state.items.slice();
+  if (f.q) {
+    const q = f.q.toLowerCase();
+    items = items.filter(i => ((i.name || "") + " " + (i.brand || "") + " " + (i.colour || "") + " " + (i.category || "")).toLowerCase().includes(q));
+  }
+  if (f.cat) items = items.filter(i => i.category === f.cat);
+  if (f.status) items = items.filter(i => (i.status || "keep") === f.status);
+
+  const sorter = {
+    recent: (a, b) => (b.createdAt || 0) - (a.createdAt || 0),
+    name: (a, b) => (a.name || "").localeCompare(b.name || ""),
+    colour: (a, b) => (a.colour || "~").localeCompare(b.colour || "~")
+  }[f.sort] || ((a, b) => 0);
+
+  const listEl = document.getElementById("inv-list");
+
+  // open needs, optionally interleaved into the inventory by category.
+  // Search + category filters apply to needs too; the keep/donate filter is item-only.
+  const showNeeds = !!f.showNeeds;
+  let needs = showNeeds ? state.needs.filter(n => !n.done) : [];
+  if (showNeeds && f.q) {
+    const q = f.q.toLowerCase();
+    needs = needs.filter(n => ((n.name || "") + " " + (n.category || "") + " " + (n.notes || "")).toLowerCase().includes(q));
+  }
+  if (showNeeds && f.cat) needs = needs.filter(n => n.category === f.cat);
+
+  const anyOpenNeeds = state.needs.some(n => !n.done);
+  if (state.items.length === 0 && !(showNeeds && anyOpenNeeds)) {
+    listEl.innerHTML = emptyState("👕", "Your wardrobe is empty", "Add your first item above. Work through your wardrobe section by section — shirts, then knitwear, then shoes — and it'll start to take shape.");
+    return;
+  }
+  if (items.length === 0 && needs.length === 0) {
+    listEl.innerHTML = emptyState("🔍", "No matches", "Nothing fits your current filters. Try clearing the search or category.");
+    return;
+  }
+
+  // group by category (in canonical order): items first, then any open needs in that category
+  let html = "";
+  const order = f.cat ? [f.cat] : CATEGORIES;
+  order.forEach(cat => {
+    const inCat = items.filter(i => i.category === cat).sort(sorter);
+    const needCat = needs.filter(n => n.category === cat);
+    if (!inCat.length && !needCat.length) return;
+    html += groupHead(cat, inCat.length, needCat.length);
+    inCat.forEach(i => { html += itemRow(i); });
+    needCat.forEach(n => { html += inventoryNeedRow(n); });
+  });
+  // categories not in the canonical list
+  const others = items.filter(i => CATEGORIES.indexOf(i.category) === -1).sort(sorter);
+  const otherNeeds = needs.filter(n => CATEGORIES.indexOf(n.category) === -1);
+  if ((others.length || otherNeeds.length) && !f.cat) {
+    html += groupHead("Uncategorised", others.length, otherNeeds.length);
+    others.forEach(i => { html += itemRow(i); });
+    otherNeeds.forEach(n => { html += inventoryNeedRow(n); });
+  }
+  listEl.innerHTML = html;
+}
+
+function needsToggleHTML(count) {
+  return '<svg class="svg sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg>Needs' + (count ? ' <span class="tp-count">' + count + "</span>" : "");
+}
+
+function groupHead(cat, itemCount, needCount) {
+  const needBadge = needCount ? ' <span class="gc-need">+' + needCount + " needed</span>" : "";
+  return '<div class="group-head"><h3>' + esc(cat) + '</h3><span class="gc">' + itemCount + "</span>" + needBadge + "</div>";
+}
+
+// A need rendered inside the Inventory list — visually distinct (dashed, accent) from owned items.
+function inventoryNeedRow(n) {
+  return '<div class="row need" data-id="' + n.id + '">' +
+    '<button class="check need" data-action="toggle-need" data-id="' + n.id + '" title="Mark as filled (you got it)"></button>' +
+    '<div class="main"><div class="name">' + esc(n.name) + ' <span class="needtag">need</span></div>' +
+      (n.notes ? '<div class="meta">' + esc(n.notes) + "</div>" : "") + "</div>" +
+    '<span class="pill ' + priClass(n.priority) + '">' + esc(n.priority || "Low") + "</span>" +
+    '<div class="acts">' +
+      '<button class="act" data-action="need-to-consider" data-id="' + n.id + '" title="Find options to consider"><svg class="svg sm" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg></button>' +
+      '<button class="act" data-action="edit" data-type="need" data-id="' + n.id + '" title="Edit"><svg class="svg sm" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></button>' +
+      '<button class="act del" data-action="delete" data-type="need" data-id="' + n.id + '" title="Delete"><svg class="svg sm" viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></button>' +
+    "</div></div>";
+}
+
+function itemRow(i) {
+  const donate = i.status === "donate";
+  const meta = [];
+  if (i.brand) meta.push(esc(i.brand));
+  if (i.colour) meta.push(esc(i.colour));
+  if (i.season && i.season !== "All-season") meta.push(esc(i.season));
+  const metaHtml = meta.length ? '<div class="meta">' + meta.join(' <span class="sep">·</span> ') + "</div>" : "";
+  const donatePill = donate ? '<span class="pill donate">donate</span>' : "";
+  return '<div class="row' + (donate ? " donate" : "") + '" data-id="' + i.id + '">' +
+    colourSwatch(i.colour) +
+    '<div class="main"><div class="name">' + esc(i.name) + " " + donatePill + "</div>" + metaHtml + "</div>" +
+    '<div class="acts">' +
+      '<button class="act donate' + (donate ? " on" : "") + '" data-action="toggle-donate" data-id="' + i.id + '" title="' + (donate ? "Keep this" : "Mark to donate") + '"><svg class="svg sm" viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 1 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"/></svg></button>' +
+      '<button class="act" data-action="edit" data-type="item" data-id="' + i.id + '" title="Edit"><svg class="svg sm" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></button>' +
+      '<button class="act del" data-action="delete" data-type="item" data-id="' + i.id + '" title="Delete"><svg class="svg sm" viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg></button>' +
+    "</div></div>";
+}
+
+/* ---------- Wishlist (gaps + options, grouped by category like Inventory) ---------- */
+function renderWishlist() {
+  const w = ui.wishlist;
+  const addNeed = w.addType === "need";
+  document.getElementById("main").innerHTML =
+    '<form class="quickbar" id="form-wish">' +
+      '<div class="seg" id="wish-addtype">' +
+        '<button type="button" data-t="need" class="' + (addNeed ? "on" : "") + '">Gap</button>' +
+        '<button type="button" data-t="consider" class="' + (addNeed ? "" : "on") + '">Option</button>' +
+      "</div>" +
+      '<input class="grow" id="wish-name" placeholder="' + (addNeed ? "What are you missing? (e.g. a versatile navy jumper)" : "An option you're weighing (e.g. Uniqlo merino crew)") + '" autocomplete="off" required>' +
+      catSelect("wish-cat", "", { placeholder: "Category…" }) +
+      '<select id="wish-pri" style="width:auto;' + (addNeed ? "" : "display:none") + '">' + opts(PRIORITIES, "Medium") + "</select>" +
+      '<input id="wish-price" placeholder="Price" inputmode="decimal" autocomplete="off" style="width:90px;' + (addNeed ? "display:none" : "") + '">' +
+      '<button class="btn" type="submit"><svg class="svg sm" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>' + (addNeed ? "Add gap" : "Add option") + "</button>" +
+    "</form>" +
+    '<div class="cats" id="wish-cats"></div>' +
+    '<div class="filters">' +
+      '<input class="search" id="wish-q" placeholder="Search gaps & options…" autocomplete="off" value="' + esc(w.q) + '">' +
+      '<div class="seg" id="wish-type">' +
+        '<button type="button" data-t="" class="' + (w.type === "" ? "on" : "") + '">All</button>' +
+        '<button type="button" data-t="need" class="' + (w.type === "need" ? "on" : "") + '">Gaps</button>' +
+        '<button type="button" data-t="consider" class="' + (w.type === "consider" ? "on" : "") + '">Options</button>' +
+      "</div>" +
+      '<button type="button" id="wish-showclosed" class="toggle-pill' + (w.showClosed ? " on" : "") + '" data-action="toggle-showclosed" title="Show bought &amp; passed options">Closed</button>' +
+      '<div class="spread" style="flex:1"></div>' +
+      '<select id="wish-sort"><option value="priority"' + (w.sort==="priority"?" selected":"") + '>By priority</option><option value="price"' + (w.sort==="price"?" selected":"") + '>By price</option><option value="recent"' + (w.sort==="recent"?" selected":"") + '>Recently added</option></select>' +
+    "</div>" +
+    '<div id="wish-list"></div>';
+  fillWishlist();
+}
+
+function optStatusRank(s) { return s === "Shortlisted" ? 0 : s === "Considering" ? 1 : s === "Bought" ? 2 : 3; }
+
+function fillWishlist() {
+  const w = ui.wishlist;
+  saveUi();
+  const q = w.q.toLowerCase();
+
+  // owned-per-category, mirroring the Inventory distribution (incl. how many are flagged to donate)
+  const owned = {};
+  state.items.forEach(i => {
+    const o = owned[i.category] || (owned[i.category] = { total: 0, donate: 0 });
+    o.total++; if (i.status === "donate") o.donate++;
+  });
+
+  // open gaps (needs) + options, filtered by type / closed / category / search
+  let needs = state.needs.filter(n => !n.done);
+  let options = state.consider.slice();
+  if (!w.showClosed) options = options.filter(c => c.status !== "Bought" && c.status !== "Passed");
+  if (w.type === "need") options = [];
+  if (w.type === "consider") needs = [];
+  if (w.cat) { needs = needs.filter(n => n.category === w.cat); options = options.filter(c => c.category === w.cat); }
+  if (q) {
+    needs = needs.filter(n => ((n.name||"") + " " + (n.category||"") + " " + (n.notes||"")).toLowerCase().includes(q));
+    options = options.filter(c => ((c.name||"") + " " + (c.category||"") + " " + (c.notes||"")).toLowerCase().includes(q));
+  }
+
+  // category distribution chips (open gaps + active options across the whole wishlist)
+  const counts = {};
+  state.needs.filter(n => !n.done).forEach(n => { counts[n.category] = (counts[n.category] || 0) + 1; });
+  state.consider.filter(c => c.status !== "Bought" && c.status !== "Passed").forEach(c => { counts[c.category] = (counts[c.category] || 0) + 1; });
+  const catList = CATEGORIES.filter(c => counts[c]).sort((a, b) => counts[b] - counts[a]);
+  const max = catList.length ? counts[catList[0]] : 1;
+  const chipsEl = document.getElementById("wish-cats");
+  if (chipsEl) {
+    chipsEl.innerHTML = catList.map(c => {
+      const pct = Math.round((counts[c] / max) * 100);
+      const active = w.cat === c ? " active" : "";
+      return '<div class="cat-chip' + active + '" data-action="wish-filter-cat" data-cat="' + esc(c) + '">' +
+        '<span class="bar" style="width:' + pct + '%"></span>' +
+        "<span>" + esc(c) + '</span><span class="n">' + counts[c] + "</span></div>";
+    }).join("");
+  }
+
+  const sortNeed = {
+    priority: (a, b) => priRank(a.priority) - priRank(b.priority) || (b.createdAt||0) - (a.createdAt||0),
+    price: (a, b) => (b.createdAt||0) - (a.createdAt||0),
+    recent: (a, b) => (b.createdAt||0) - (a.createdAt||0)
+  }[w.sort] || (() => 0);
+  const sortOpt = {
+    priority: (a, b) => optStatusRank(a.status) - optStatusRank(b.status) || priRank(a.priority) - priRank(b.priority) || (b.createdAt||0) - (a.createdAt||0),
+    price: (a, b) => (Number(a.price)||0) - (Number(b.price)||0),
+    recent: (a, b) => (b.createdAt||0) - (a.createdAt||0)
+  }[w.sort] || (() => 0);
+
+  const listEl = document.getElementById("wish-list");
+  if (state.needs.filter(n => !n.done).length === 0 && state.consider.length === 0) {
+    listEl.innerHTML = emptyState("✨", "Nothing on your wishlist yet", "Use the toggle above to note a gap you've spotted, or add a specific option you're weighing up. Both sort into the same categories as your wardrobe, so you can see what's missing where.");
+    return;
+  }
+  if (needs.length === 0 && options.length === 0) {
+    listEl.innerHTML = emptyState("🔍", "No matches", "Nothing fits your current filters. Try clearing the search, category or type — or switch on Closed to see bought & passed options.");
+    return;
+  }
+
+  // group by category (canonical order): gaps first, then options
+  let html = "";
+  const order = w.cat ? [w.cat] : CATEGORIES;
+  order.forEach(cat => {
+    const nC = needs.filter(n => n.category === cat).sort(sortNeed);
+    const oC = options.filter(c => c.category === cat).sort(sortOpt);
+    if (!nC.length && !oC.length) return;
+    html += wishGroupHead(cat, nC.length, oC.length, owned);
+    nC.forEach(n => { html += wishNeedRow(n); });
+    oC.forEach(c => { html += optionRow(c); });
+  });
+  const nOther = needs.filter(n => CATEGORIES.indexOf(n.category) === -1).sort(sortNeed);
+  const oOther = options.filter(c => CATEGORIES.indexOf(c.category) === -1).sort(sortOpt);
+  if ((nOther.length || oOther.length) && !w.cat) {
+    html += wishGroupHead("Uncategorised", nOther.length, oOther.length, owned);
+    nOther.forEach(n => { html += wishNeedRow(n); });
+    oOther.forEach(c => { html += optionRow(c); });
+  }
+  listEl.innerHTML = html;
+}
+
+function wishGroupHead(cat, nNeed, nOpt, owned) {
+  const o = owned[cat] || { total: 0, donate: 0 };
+  const ownBadge = (cat !== "Uncategorised")
+    ? ' <span class="gc-own" data-action="goto-cat" data-cat="' + esc(cat) + '" title="See your ' + esc(cat) + ' in the wardrobe">' + (o.total ? o.total + " in wardrobe" : "none owned") + "</span>"
+    : "";
+  const gapBadge = nNeed ? ' <span class="gc-need">' + nNeed + " gap" + (nNeed > 1 ? "s" : "") + "</span>" : "";
+  const optBadge = nOpt ? ' <span class="gc-opt">' + nOpt + " option" + (nOpt > 1 ? "s" : "") + "</span>" : "";
+  return '<div class="group-head"><h3>' + esc(cat) + "</h3>" + ownBadge + gapBadge + optBadge + "</div>";
+}
+
+// A gap (need) rendered as a row in the Wishlist.
+function wishNeedRow(n) {
+  return '<div class="row need" data-id="' + n.id + '">' +
+    '<button class="check need" data-action="toggle-need" data-id="' + n.id + '" title="Mark as filled (you got it)"></button>' +
+    '<div class="main"><div class="name">' + esc(n.name) + ' <span class="needtag">gap</span></div>' +
+      (n.notes ? '<div class="meta">' + esc(n.notes) + "</div>" : "") + "</div>" +
+    '<span class="pill ' + priClass(n.priority) + '">' + esc(n.priority || "Low") + "</span>" +
+    '<div class="acts">' +
+      '<button class="act" data-action="need-to-consider" data-id="' + n.id + '" title="Add an option for this gap"><svg class="svg sm" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>' +
+      '<button class="act" data-action="edit" data-type="need" data-id="' + n.id + '" title="Edit"><svg class="svg sm" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></button>' +
+      '<button class="act del" data-action="delete" data-type="need" data-id="' + n.id + '" title="Delete"><svg class="svg sm" viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></button>' +
+    "</div></div>";
+}
+
+// An option (consider candidate) rendered as a row in the Wishlist.
+function optionRow(c) {
+  const st = c.status || "Considering";
+  const url = safeUrl(c.url);
+  const link = url ? '<a class="act" href="' + esc(url) + '" target="_blank" rel="noopener" title="View ' + esc(c.name) + '"><svg class="svg sm" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></a>' : "";
+  const priceHtml = (Number(c.price) > 0) ? '<span class="row-price">' + money(c.price) + "</span>" : "";
+  const closed = st === "Bought" || st === "Passed";
+  return '<div class="row option' + (closed ? " closed" : "") + '" data-id="' + c.id + '">' +
+    '<span class="opt-dot ' + st.toLowerCase() + '" title="' + st + '"></span>' +
+    '<div class="main"><div class="name">' + esc(c.name) + "</div>" +
+      (c.notes ? '<div class="meta">' + esc(c.notes) + "</div>" : "") + "</div>" +
+    priceHtml +
+    '<select class="opt-status" data-action="consider-status" data-id="' + c.id + '">' + opts(CONSIDER_STATUS, st) + "</select>" +
+    '<span class="pill ' + priClass(c.priority) + '">' + esc(c.priority || "Low") + "</span>" +
+    '<div class="acts">' +
+      link +
+      '<button class="act" data-action="consider-to-wardrobe" data-id="' + c.id + '" title="Add to wardrobe"><svg class="svg sm" viewBox="0 0 24 24"><path d="M20.38 3.46 16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.47a1 1 0 0 0 .99.84H6v10a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V10h2.15a1 1 0 0 0 .99-.84l.58-3.47a2 2 0 0 0-1.34-2.23z"/></svg></button>' +
+      '<button class="act" data-action="edit" data-type="consider" data-id="' + c.id + '" title="Edit"><svg class="svg sm" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></button>' +
+      '<button class="act del" data-action="delete" data-type="consider" data-id="' + c.id + '" title="Delete"><svg class="svg sm" viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></button>' +
+    "</div></div>";
+}
+
+/* (Needs and Consider are merged into the Wishlist above) */
+
+/* ---------- Empty state ---------- */
+function emptyState(ico, title, body) {
+  return '<div class="empty"><div class="ico">' + ico + "</div><h4>" + esc(title) + "</h4><p>" + esc(body) + "</p></div>";
+}
+
+/* ---------- Render dispatch ---------- */
+function renderMain() {
+  document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.dataset.tab === ui.tab));
+  if (ui.tab === "inventory") renderInventory();
+  else renderWishlist();
+}
+function refresh() {
+  renderStats();
+  if (ui.tab === "inventory") fillInventory();
+  else fillWishlist();
+}
+function renderAll() { renderStats(); renderMain(); }
+
+/* ---------- Lookups ---------- */
+function find(type, id) {
+  const arr = type === "item" ? state.items : type === "need" ? state.needs : state.consider;
+  return arr.find(x => x.id === id);
+}
+
+/* ---------- Modal editor ---------- */
+function openEditor(type, id) {
+  const rec = find(type, id);
+  if (!rec) return;
+  let title, body;
+  if (type === "item") {
+    title = "Edit item";
+    body =
+      fieldText("e-name", "Name", rec.name) +
+      '<div class="field-row">' +
+        fieldSelect("e-cat", "Category", CATEGORIES, rec.category) +
+        fieldText("e-colour", "Colour", rec.colour) +
+      "</div>" +
+      '<div class="field-row">' +
+        fieldText("e-brand", "Brand", rec.brand) +
+        fieldSelect("e-season", "Season", SEASONS, rec.season || "All-season") +
+      "</div>" +
+      '<div class="field"><label>Status</label><div class="seg" id="e-status"><button type="button" data-v="keep" class="' + (rec.status!=="donate"?"on":"") + '">Keeping</button><button type="button" data-v="donate" class="' + (rec.status==="donate"?"on":"") + '">To donate</button></div></div>' +
+      fieldArea("e-notes", "Notes", rec.notes);
+  } else if (type === "need") {
+    title = "Edit need";
+    body =
+      fieldText("e-name", "What you need", rec.name) +
+      '<div class="field-row">' +
+        fieldSelect("e-cat", "Category", CATEGORIES, rec.category) +
+        fieldSelect("e-pri", "Priority", PRIORITIES, rec.priority || "Medium") +
+      "</div>" +
+      fieldArea("e-notes", "Notes", rec.notes);
+  } else {
+    title = "Edit option";
+    body =
+      fieldText("e-name", "Name", rec.name) +
+      '<div class="field-row">' +
+        fieldSelect("e-cat", "Category", CATEGORIES, rec.category) +
+        fieldText("e-price", "Price", rec.price) +
+      "</div>" +
+      fieldText("e-url", "Link (URL)", rec.url) +
+      '<div class="field-row">' +
+        fieldSelect("e-pri", "Priority", PRIORITIES, rec.priority || "Medium") +
+        fieldSelect("e-status", "Status", CONSIDER_STATUS, rec.status || "Considering") +
+      "</div>" +
+      fieldArea("e-notes", "Notes", rec.notes);
+  }
+
+  document.getElementById("modal-root").innerHTML =
+    '<div class="modal-backdrop"><div class="modal">' +
+      '<div class="modal-head"><h3>' + title + '</h3><button class="act del" data-action="modal-cancel" title="Close"><svg class="svg sm" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>' +
+      '<form class="modal-body" id="form-edit" data-type="' + type + '" data-id="' + id + '">' + body +
+        '<div class="modal-foot"><button type="button" class="btn ghost" data-action="modal-cancel">Cancel</button><button type="submit" class="btn">Save changes</button></div>' +
+      "</form>" +
+    "</div></div>";
+  setTimeout(() => { const el = document.getElementById("e-name"); if (el) el.focus(); }, 30);
+}
+function closeEditor() { document.getElementById("modal-root").innerHTML = ""; }
+
+function fieldText(id, label, val) {
+  return '<div class="field"><label>' + esc(label) + '</label><input id="' + id + '" value="' + esc(val) + '" autocomplete="off"></div>';
+}
+function fieldArea(id, label, val) {
+  return '<div class="field"><label>' + esc(label) + '</label><textarea id="' + id + '" placeholder="Optional…">' + esc(val) + "</textarea></div>";
+}
+function fieldSelect(id, label, list, sel) {
+  return '<div class="field"><label>' + esc(label) + '</label><select id="' + id + '">' + opts(list, sel) + "</select></div>";
+}
+
+function saveEditor(form) {
+  const type = form.dataset.type, id = form.dataset.id;
+  const rec = find(type, id);
+  if (!rec) { closeEditor(); return; }
+  const v = sel => { const el = document.getElementById(sel); return el ? el.value.trim() : ""; };
+  rec.name = v("e-name") || rec.name;
+  rec.category = v("e-cat");
+  rec.notes = (document.getElementById("e-notes") || {}).value || "";
+  if (type === "item") {
+    rec.colour = v("e-colour");
+    rec.brand = v("e-brand");
+    rec.season = v("e-season");
+    const segOn = document.querySelector("#e-status button.on");
+    rec.status = segOn ? segOn.dataset.v : (rec.status || "keep");
+  } else if (type === "need") {
+    rec.priority = v("e-pri");
+  } else {
+    rec.price = parsePrice(v("e-price"));
+    rec.url = v("e-url");
+    rec.priority = v("e-pri");
+    rec.status = v("e-status");
+  }
+  save(); closeEditor(); refresh();
+}
+function parsePrice(s) {
+  if (!s) return "";
+  const n = parseFloat(String(s).replace(/[^0-9.]/g, ""));
+  return isFinite(n) ? n : "";
+}
+
+/* ---------- Actions ---------- */
+function addItem() {
+  const name = val("inv-name"); if (!name) return;
+  state.items.push({ id: uid(), name, category: val("inv-cat") || "Other", colour: val("inv-colour"), brand: "", season: "All-season", status: "keep", notes: "", createdAt: Date.now() });
+  save();
+  setVal("inv-name", ""); setVal("inv-colour", "");
+  refresh();
+  focus("inv-name");
+}
+function addWish() {
+  const name = val("wish-name"); if (!name) return;
+  const cat = val("wish-cat") || "Other";
+  if (ui.wishlist.addType === "need") {
+    state.needs.push({ id: uid(), name, category: cat, priority: val("wish-pri") || "Medium", notes: "", done: false, createdAt: Date.now() });
+  } else {
+    state.consider.push({ id: uid(), name, category: cat, price: parsePrice(val("wish-price")), url: "", priority: "Medium", status: "Considering", notes: "", createdAt: Date.now() });
+  }
+  save();
+  setVal("wish-name", ""); setVal("wish-price", "");
+  refresh();
+  focus("wish-name");
+}
+function needToConsider(id) {
+  const n = find("need", id); if (!n) return;
+  state.consider.push({ id: uid(), name: n.name, category: n.category, price: "", url: "", priority: n.priority || "Medium", status: "Considering", notes: "For gap: " + n.name, createdAt: Date.now() });
+  save();
+  ui.tab = "wishlist";
+  ui.wishlist.type = "";      // make sure options are visible
+  ui.wishlist.cat = n.category; // focus this category so the gap + its new option sit together
+  renderAll();
+}
+function considerToWardrobe(id) {
+  const c = find("consider", id); if (!c) return;
+  state.items.push({ id: uid(), name: c.name, category: c.category, colour: "", brand: "", season: "All-season", status: "keep", notes: c.notes || "", createdAt: Date.now() });
+  c.status = "Bought";
+  save();
+  ui.tab = "inventory";
+  renderAll();
+}
+function arrFor(type) { return type === "item" ? state.items : type === "need" ? state.needs : state.consider; }
+function deleteRec(type, id) {
+  const arr = arrFor(type);
+  const idx = arr.findIndex(x => x.id === id);
+  if (idx === -1) return;
+  const rec = arr[idx];
+  arr.splice(idx, 1);
+  save(); refresh();
+  const label = { item: "Item", need: "Gap", consider: "Option" }[type];
+  showToast(label + " deleted — “" + (rec.name || "") + "”", "Undo", () => {
+    const a = arrFor(type);
+    a.splice(Math.min(idx, a.length), 0, rec);
+    save(); refresh();
+  });
+}
+
+/* Toast with optional undo action */
+let toastTimer = null;
+function showToast(msg, actionLabel, actionFn) {
+  const t = document.getElementById("toast");
+  if (!t) return;
+  if (toastTimer) { clearTimeout(toastTimer); toastTimer = null; }
+  t.innerHTML = "<span>" + esc(msg) + "</span>" + (actionLabel ? '<button class="toast-btn" id="toast-action" type="button">' + esc(actionLabel) + "</button>" : "");
+  t.classList.add("show");
+  if (actionLabel) document.getElementById("toast-action").onclick = () => { hideToast(); if (actionFn) actionFn(); };
+  toastTimer = setTimeout(hideToast, 6000);
+}
+function hideToast() {
+  const t = document.getElementById("toast");
+  if (t) t.classList.remove("show");
+  if (toastTimer) { clearTimeout(toastTimer); toastTimer = null; }
+}
+
+/* small DOM utils */
+function val(id) { const el = document.getElementById(id); return el ? el.value.trim() : ""; }
+function setVal(id, v) { const el = document.getElementById(id); if (el) el.value = v; }
+function focus(id) { const el = document.getElementById(id); if (el) el.focus(); }
+
+/* ---------- Data: export / import / reset ---------- */
+function exportData() {
+  const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "wardrobe-backup-" + new Date().toISOString().slice(0, 10) + ".json";
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+function importData() { document.getElementById("file-input").click(); }
+function handleImport(file) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const parsed = JSON.parse(e.target.result);
+      if (!confirm("Import this backup? It will replace your current wardrobe data.")) return;
+      state = normalize(parsed);
+      save();
+      document.getElementById("cur-input").value = state.settings.currency || "£";
+      renderAll();
+    } catch (err) { alert("Couldn't read that file — is it a valid wardrobe backup?"); }
+  };
+  reader.readAsText(file);
+}
+function resetData() {
+  if (!confirm("Reset everything? This permanently clears all items, needs and options on this device.")) return;
+  if (!confirm("Are you sure? This can't be undone (export a backup first if unsure).")) return;
+  state = blank();
+  save();
+  renderAll();
+}
+
+/* ---------- Event wiring (delegated) ---------- */
+document.addEventListener("submit", e => {
+  const f = e.target;
+  if (f.id === "form-inv") { e.preventDefault(); addItem(); }
+  else if (f.id === "form-wish") { e.preventDefault(); addWish(); }
+  else if (f.id === "form-edit") { e.preventDefault(); saveEditor(f); }
+});
+
+document.addEventListener("click", e => {
+  // Close the modal only when the backdrop itself is clicked (not children that bubble up).
+  if (e.target.classList && e.target.classList.contains("modal-backdrop")) { closeEditor(); return; }
+
+  const tab = e.target.closest(".tab");
+  if (tab) { ui.tab = tab.dataset.tab; renderMain(); return; }
+
+  // segmented status toggle inside editor
+  const segBtn = e.target.closest("#e-status button");
+  if (segBtn) { segBtn.parentElement.querySelectorAll("button").forEach(b => b.classList.remove("on")); segBtn.classList.add("on"); return; }
+
+  // wishlist add-type toggle (Gap / Option)
+  const at = e.target.closest("#wish-addtype button");
+  if (at) { if (ui.wishlist.addType !== at.dataset.t) { ui.wishlist.addType = at.dataset.t; renderWishlist(); } return; }
+  // wishlist type filter (All / Gaps / Options)
+  const wt = e.target.closest("#wish-type button");
+  if (wt) { ui.wishlist.type = wt.dataset.t; renderWishlist(); return; }
+
+  const actEl = e.target.closest("[data-action]");
+  if (!actEl) {
+    // close menu when clicking elsewhere
+    document.getElementById("menu").classList.remove("open");
+    return;
+  }
+  const action = actEl.dataset.action;
+  const id = actEl.dataset.id;
+  const type = actEl.dataset.type;
+
+  switch (action) {
+    case "filter-cat": ui.inv.cat = (ui.inv.cat === actEl.dataset.cat) ? "" : actEl.dataset.cat; fillInventory(); break;
+    case "goto-cat": ui.tab = "inventory"; ui.inv.cat = actEl.dataset.cat; ui.inv.q = ""; ui.inv.status = ""; renderMain(); window.scrollTo(0, 0); break;
+    case "toggle-showneeds": ui.inv.showNeeds = !ui.inv.showNeeds; renderInventory(); break;
+    case "wish-filter-cat": ui.wishlist.cat = (ui.wishlist.cat === actEl.dataset.cat) ? "" : actEl.dataset.cat; fillWishlist(); break;
+    case "toggle-showclosed": ui.wishlist.showClosed = !ui.wishlist.showClosed; renderWishlist(); break;
+    case "toggle-donate": { const i = find("item", id); if (i) { i.status = i.status === "donate" ? "keep" : "donate"; save(); refresh(); } break; }
+    case "toggle-need": { const n = find("need", id); if (n) { n.done = !n.done; save(); refresh(); } break; }
+    case "need-to-consider": needToConsider(id); break;
+    case "consider-to-wardrobe": considerToWardrobe(id); break;
+    case "edit": openEditor(type, id); break;
+    case "delete": deleteRec(type, id); break;
+    case "dismiss-intro": state.onboarded = true; save(); renderInventory(); break;
+    case "modal-cancel": closeEditor(); break;
+    case "export": exportData(); document.getElementById("menu").classList.remove("open"); break;
+    case "import": importData(); document.getElementById("menu").classList.remove("open"); break;
+    case "reset": resetData(); document.getElementById("menu").classList.remove("open"); break;
+  }
+});
+
+document.addEventListener("change", e => {
+  const t = e.target;
+  if (t.id === "inv-status") { ui.inv.status = t.value; fillInventory(); }
+  else if (t.id === "inv-sort") { ui.inv.sort = t.value; fillInventory(); }
+  else if (t.id === "wish-sort") { ui.wishlist.sort = t.value; fillWishlist(); }
+  else if (t.dataset && t.dataset.action === "consider-status") {
+    const c = find("consider", t.dataset.id); if (c) { c.status = t.value; save(); refresh(); }
+  }
+  else if (t.id === "file-input" && t.files && t.files[0]) { handleImport(t.files[0]); t.value = ""; }
+  else if (t.id === "cur-input") { state.settings.currency = t.value.trim() || "£"; save(); refresh(); }
+});
+
+document.addEventListener("input", e => {
+  if (e.target.id === "inv-q") { ui.inv.q = e.target.value; fillInventory(); }
+  else if (e.target.id === "wish-q") { ui.wishlist.q = e.target.value; fillWishlist(); }
+});
+
+document.getElementById("menu-toggle").addEventListener("click", e => {
+  e.stopPropagation();
+  document.getElementById("menu").classList.toggle("open");
+});
+
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape") { closeEditor(); document.getElementById("menu").classList.remove("open"); hideToast(); return; }
+  const tag = (e.target.tagName || "").toLowerCase();
+  if (tag === "input" || tag === "textarea" || tag === "select" || e.target.isContentEditable) return;
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
+  if (document.querySelector(".modal-backdrop")) return; // don't fire shortcuts while editing
+  if (e.key === "/") { e.preventDefault(); focus(ui.tab === "inventory" ? "inv-q" : "wish-q"); }
+  else if (e.key === "n" || e.key === "N") { e.preventDefault(); focus(ui.tab === "inventory" ? "inv-name" : "wish-name"); }
+  else if (e.key === "1") { ui.tab = "inventory"; renderMain(); window.scrollTo(0, 0); }
+  else if (e.key === "2") { ui.tab = "wishlist"; renderMain(); window.scrollTo(0, 0); }
+});
+
+/* ---------- Init ---------- */
+document.getElementById("cur-input").value = state.settings.currency || "£";
+renderAll();
+</script>
+</body>
+</html>
