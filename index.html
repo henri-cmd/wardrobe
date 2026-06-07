@@ -112,6 +112,8 @@ header {
 .cat-list { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 9px; }
 .cat-empty { font-size: 11.5px; color: var(--muted); }
 .cat-tag { display: inline-flex; align-items: center; gap: 4px; background: var(--surface2); border: 1px solid var(--border2); border-radius: 20px; padding: 3px 4px 3px 11px; font-size: 11.5px; color: var(--text); }
+.cat-name { background: transparent; border: none; color: var(--text); cursor: pointer; font-family: var(--sans); font-size: 11.5px; padding: 0; }
+.cat-name:hover { color: var(--accent); text-decoration: underline; }
 .cat-rm { background: transparent; border: none; color: var(--muted); cursor: pointer; font-size: 15px; line-height: 1; padding: 0 4px; border-radius: 50%; }
 .cat-rm:hover { color: var(--red); }
 .cat-add { display: flex; gap: 6px; }
@@ -458,10 +460,8 @@ textarea { resize: vertical; min-height: 60px; }
 
 /* ---------- Constants ---------- */
 const STORE_KEY = "wardrobe.v1";
-const CATEGORIES = [
-  "Tops & Tees","Shirts","Knitwear","Jackets & Coats","Trousers","Jeans",
-  "Shorts","Tailoring","Shoes","Activewear","Accessories","Underwear & Socks","Other"
-];
+// No built-in categories — every category is user-defined (see state.customCategories).
+const CATEGORIES = [];
 const SEASONS = ["All-season","Spring","Summer","Autumn","Winter"];
 const PRIORITIES = ["High","Medium","Low"];
 const CONSIDER_STATUS = ["Considering","Shortlisted","Bought","Passed"];
@@ -482,14 +482,14 @@ const COLOURS = {
 };
 
 /* ---------- State ---------- */
-function blank() { return { items: [], needs: [], consider: [], customCategories: [], settings: { currency: "£" }, onboarded: false }; }
+function blank() { return { items: [], needs: [], consider: [], customCategories: [], categoriesMigrated: true, settings: { currency: "£" }, onboarded: false }; }
 function normalize(d) {
   if (!d || typeof d !== "object") return blank();
   d.items = Array.isArray(d.items) ? d.items : [];
   d.needs = Array.isArray(d.needs) ? d.needs : [];
   d.consider = Array.isArray(d.consider) ? d.consider : [];
   d.customCategories = Array.isArray(d.customCategories) ? d.customCategories : [];
-  // dedupe, drop blanks and any that collide with built-in categories (case-insensitive)
+  // Categories are entirely user-defined. Dedupe + drop blanks (case-insensitive).
   const seenCat = new Set(CATEGORIES.map(c => c.toLowerCase()));
   d.customCategories = d.customCategories.filter(c => {
     if (typeof c !== "string") return false;
@@ -497,6 +497,17 @@ function normalize(d) {
     if (!k || seenCat.has(k)) return false;
     seenCat.add(k); return true;
   }).map(c => c.trim());
+  // One-time migration: when upgrading from the old built-in categories, fold any
+  // categories already in use into the custom list so nothing gets orphaned. Runs once
+  // (flagged) so categories you later remove don't keep coming back.
+  if (d.categoriesMigrated !== true) {
+    [].concat(d.items, d.needs, d.consider).forEach(x => {
+      const cat = x && typeof x.category === "string" ? x.category.trim() : "";
+      const k = cat.toLowerCase();
+      if (k && !seenCat.has(k)) { seenCat.add(k); d.customCategories.push(cat); }
+    });
+    d.categoriesMigrated = true;
+  }
   d.settings = d.settings || {};
   if (!d.settings.currency) d.settings.currency = "£";
   d.onboarded = !!d.onboarded;
@@ -576,7 +587,7 @@ function canonicalCategory(name) {
   const k = (name || "").trim().toLowerCase();
   return allCategories().find(c => c.toLowerCase() === k) || (name || "").trim();
 }
-function cleanCat(v) { return (!v || v === "__new__") ? "Other" : v; }
+function cleanCat(v) { return (!v || v === "__new__") ? "" : v; }
 function addCustomCategory(name) {
   name = (name || "").trim();
   if (!name || name === "__new__") return false;
@@ -600,12 +611,26 @@ function removeCustomCategory(cat) {
     showToast("Removed “" + cat + "”", null);
   }
 }
+function applyCategoryRename(from, to) {
+  const idx = state.customCategories.indexOf(from);
+  if (idx === -1) return;
+  state.customCategories[idx] = to;
+  [state.items, state.needs, state.consider].forEach(arr => arr.forEach(r => { if (r.category === from) r.category = to; }));
+  save(); renderCatManager(); renderMain();
+}
+function renameCustomCategory(oldName) {
+  const input = (window.prompt("Rename category", oldName) || "").trim();
+  if (!input || input === oldName) return;
+  if (allCategories().some(c => c.toLowerCase() === input.toLowerCase() && c !== oldName)) { showToast("“" + input + "” already exists", null); return; }
+  applyCategoryRename(oldName, input);
+  showToast("Renamed “" + oldName + "” → “" + input + "”", "Undo", () => applyCategoryRename(input, oldName));
+}
 function renderCatManager() {
   const el = document.getElementById("cat-list");
   if (!el) return;
   const cats = state.customCategories || [];
   el.innerHTML = cats.length
-    ? cats.map(c => '<span class="cat-tag">' + esc(c) + '<button class="cat-rm" type="button" data-action="rm-cat" data-cat="' + esc(c) + '" title="Remove">×</button></span>').join("")
+    ? cats.map(c => '<span class="cat-tag"><button class="cat-name" type="button" data-action="rename-cat" data-cat="' + esc(c) + '" title="Click to rename">' + esc(c) + '</button><button class="cat-rm" type="button" data-action="rm-cat" data-cat="' + esc(c) + '" title="Remove">×</button></span>').join("")
     : '<div class="cat-empty">None yet — add one below.</div>';
 }
 function refreshCategorySelect(el, selVal) {
@@ -1356,6 +1381,7 @@ document.addEventListener("click", e => {
     case "wish-filter-cat": ui.wishlist.cat = (ui.wishlist.cat === actEl.dataset.cat) ? "" : actEl.dataset.cat; fillWishlist(); break;
     case "toggle-showclosed": ui.wishlist.showClosed = !ui.wishlist.showClosed; renderWishlist(); break;
     case "rm-cat": removeCustomCategory(actEl.dataset.cat); break;
+    case "rename-cat": renameCustomCategory(actEl.dataset.cat); break;
     case "fetch-link": fetchLinkInto(actEl.dataset.for); break;
     case "toggle-donate": { const i = find("item", id); if (i) { i.status = i.status === "donate" ? "keep" : "donate"; save(); refresh(); } break; }
     case "toggle-need": { const n = find("need", id); if (n) { n.done = !n.done; save(); refresh(); } break; }
