@@ -172,9 +172,10 @@ header {
 .lightbox img { max-width: 92vw; max-height: 88vh; border-radius: 10px; box-shadow: 0 24px 80px rgba(0,0,0,0.6); object-fit: contain; }
 
 /* Drag-to-reorder */
-.drag-handle { color: var(--muted); cursor: grab; font-size: 16px; line-height: 1; padding: 0 2px; flex-shrink: 0; user-select: none; touch-action: none; opacity: 0.7; }
-.drag-handle:hover { color: var(--text); }
-.row .drag-handle { margin-right: -4px; }
+.drag-handle { color: var(--muted2); cursor: grab; font-size: 17px; line-height: 1; padding: 2px 3px; flex-shrink: 0; user-select: none; touch-action: none; border-radius: 6px; }
+.drag-handle:hover { color: var(--text); background: var(--surface3); }
+.row .drag-handle { margin-right: -2px; }
+.cat-hint { color: var(--muted); font-size: 10.5px; font-family: var(--mono); margin-bottom: 7px; }
 .row.dragging, .cat-tag.dragging { opacity: 0.55; }
 .row.dragging { background: var(--surface3); border-color: var(--accent-border); }
 .cat-tag.dragging { border-color: var(--accent-border); }
@@ -674,7 +675,8 @@ function renderCatManager() {
   el.classList.toggle("sortable", cats.length > 1);
   el.dataset.sortkind = "category";
   el.innerHTML = cats.length
-    ? cats.map(c => '<span class="cat-tag" data-sortable data-id="' + esc(c) + '">' +
+    ? (cats.length > 1 ? '<div class="cat-hint">Drag the ⠿ handle to reorder · tap a name to rename</div>' : "") +
+      cats.map(c => '<span class="cat-tag" data-sortable data-id="' + esc(c) + '">' +
         (cats.length > 1 ? '<span class="drag-handle" data-drag title="Drag to reorder">⠿</span>' : "") +
         '<button class="cat-name" type="button" data-action="rename-cat" data-cat="' + esc(c) + '" title="Click to rename">' + esc(c) + "</button>" +
         '<button class="cat-rm" type="button" data-action="rm-cat" data-cat="' + esc(c) + '" title="Remove">×</button></span>').join("")
@@ -842,8 +844,8 @@ function fillInventory() {
   // group by category (canonical order). Items go in a container (sortable in custom-order list view);
   // any open needs render after it. Card view shows an image-forward grid.
   const view = f.view === "cards" ? "cards" : "list";
-  const canReorder = view === "list" && f.sort === "custom" && !f.q && !showNeeds;
-  let html = canReorder ? '<div class="reorder-hint">Drag the ⠿ handles to reorder items within a category.</div>' : "";
+  const canReorder = view === "list" && !f.q && !showNeeds;
+  let html = canReorder ? '<div class="reorder-hint">Drag the <b>⠿</b> handle on the left of a row to reorder items within a category.</div>' : "";
   const groupBody = (cat, inCat, needCat) => {
     const itemsHtml = inCat.map(i => view === "cards" ? itemCard(i) : itemRow(i, canReorder)).join("");
     const needsHtml = needCat.map(n => inventoryNeedRow(n)).join("");
@@ -1716,6 +1718,10 @@ function commitItemOrder(ids) {
   const ordered = ids.map(id => state.items.find(it => it.id === id)).filter(Boolean);
   let k = 0;
   state.items = state.items.map(it => idset.has(it.id) ? ordered[k++] : it);
+  // dragging defines a custom arrangement — switch the sort to it so it sticks and stays visible
+  ui.inv.sort = "custom";
+  const sortSel = document.getElementById("inv-sort");
+  if (sortSel) sortSel.value = "custom";
   save(); renderStats(); fillInventory();
 }
 
