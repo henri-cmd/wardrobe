@@ -880,7 +880,7 @@ function groupHead(cat, itemCount, needCount) {
 function inventoryNeedRow(n) {
   return '<div class="row need" data-id="' + n.id + '">' +
     '<button class="check need" data-action="toggle-need" data-id="' + n.id + '" title="Mark as filled (you got it)"></button>' +
-    '<div class="main"><div class="name">' + esc(n.name) + ' <span class="needtag">need</span></div>' +
+    '<div class="main"><div class="name">' + esc(n.name) + " " + (qtyOf(n) > 1 ? '<span class="qty">×' + qtyOf(n) + "</span> " : "") + '<span class="needtag">need</span></div>' +
       (n.notes ? '<div class="meta">' + esc(n.notes) + "</div>" : "") + "</div>" +
     '<span class="pill ' + priClass(n.priority) + '">' + esc(n.priority || "Low") + "</span>" +
     '<div class="acts">' +
@@ -957,6 +957,7 @@ function renderWishlist() {
       '<input class="grow" id="wish-name" placeholder="' + (addNeed ? "What are you missing? (e.g. a versatile navy jumper)" : "An option you're weighing (e.g. Uniqlo merino crew)") + '" autocomplete="off" required>' +
       catSelect("wish-cat", "", { placeholder: "Category…" }) +
       '<select id="wish-pri" style="width:auto;' + (addNeed ? "" : "display:none") + '">' + opts(PRIORITIES, "Medium") + "</select>" +
+      '<input id="wish-need-qty" type="number" min="1" step="1" value="1" title="Quantity" autocomplete="off" style="width:62px;' + (addNeed ? "" : "display:none") + '">' +
       '<input id="wish-price" placeholder="Price" inputmode="decimal" autocomplete="off" style="width:90px;' + (addNeed ? "display:none" : "") + '">' +
       '<input id="wish-brand" placeholder="Brand" autocomplete="off" style="width:110px;' + (addNeed ? "display:none" : "") + '">' +
       '<button class="btn" type="submit"><svg class="svg sm" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>' + (addNeed ? "Add gap" : "Add option") + "</button>" +
@@ -1076,7 +1077,7 @@ function wishGroupHead(cat, nNeed, nOpt, owned) {
 function wishNeedRow(n) {
   return '<div class="row need" data-id="' + n.id + '">' +
     '<button class="check need" data-action="toggle-need" data-id="' + n.id + '" title="Mark as filled (you got it)"></button>' +
-    '<div class="main"><div class="name">' + esc(n.name) + ' <span class="needtag">gap</span></div>' +
+    '<div class="main"><div class="name">' + esc(n.name) + " " + (qtyOf(n) > 1 ? '<span class="qty">×' + qtyOf(n) + "</span> " : "") + '<span class="needtag">gap</span></div>' +
       (n.notes ? '<div class="meta">' + esc(n.notes) + "</div>" : "") + "</div>" +
     '<span class="pill ' + priClass(n.priority) + '">' + esc(n.priority || "Low") + "</span>" +
     '<div class="acts">' +
@@ -1166,6 +1167,7 @@ function openEditor(type, id) {
         fieldSelect("e-cat", "Category", allCategories(), rec.category, true) +
         fieldSelect("e-pri", "Priority", PRIORITIES, rec.priority || "Medium") +
       "</div>" +
+      '<div class="field-row">' + fieldNum("e-qty", "Quantity", qtyOf(rec)) + '<div class="field"></div>' + "</div>" +
       fieldArea("e-notes", "Notes", rec.notes);
   } else {
     title = "Edit option";
@@ -1242,6 +1244,7 @@ function saveEditor(form) {
     rec.status = segOn ? segOn.dataset.v : (rec.status || "keep");
   } else if (type === "need") {
     rec.priority = v("e-pri");
+    rec.quantity = Math.max(1, parseInt(v("e-qty"), 10) || 1);
   } else {
     rec.brand = v("e-brand");
     rec.price = parsePrice(v("e-price"));
@@ -1429,12 +1432,12 @@ function addWish() {
   const name = val("wish-name"); if (!name) return;
   const cat = cleanCat(val("wish-cat"));
   if (ui.wishlist.addType === "need") {
-    state.needs.push({ id: uid(), name, category: cat, priority: val("wish-pri") || "Medium", notes: "", done: false, createdAt: Date.now() });
+    state.needs.push({ id: uid(), name, category: cat, priority: val("wish-pri") || "Medium", quantity: Math.max(1, parseInt(val("wish-need-qty"), 10) || 1), notes: "", done: false, createdAt: Date.now() });
   } else {
     state.consider.push({ id: uid(), name, category: cat, brand: val("wish-brand"), price: parsePrice(val("wish-price")), url: val("wish-link"), image: pendingImg.wish || "", priority: "Medium", status: "Considering", notes: "", createdAt: Date.now() });
   }
   save();
-  setVal("wish-name", ""); setVal("wish-price", ""); setVal("wish-brand", ""); setVal("wish-link", "");
+  setVal("wish-name", ""); setVal("wish-price", ""); setVal("wish-brand", ""); setVal("wish-need-qty", "1"); setVal("wish-link", "");
   pendingImg.wish = ""; renderThumbPreview("wish");
   refresh();
   focus("wish-name");
