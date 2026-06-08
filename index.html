@@ -201,6 +201,16 @@ body.dragging-active .drag-handle { cursor: grabbing; }
 .icard-acts { display: flex; gap: 5px; padding: 6px 9px 9px; opacity: 0; transition: .14s; }
 .icard:hover .icard-acts { opacity: 1; }
 @media (hover: none) { .icard-acts { opacity: 1; } }
+/* card extras shared by Selling, Decommissioned & Wishlist card views */
+.icard.gone { opacity: 0.62; }
+.icard.gone .icard-img img { filter: grayscale(0.6); }
+.icard.option.closed { opacity: 0.55; }
+.icard-img .opt-dot.icard-dot { position: absolute; top: 7px; right: 7px; width: 12px; height: 12px; box-shadow: 0 0 0 2px var(--surface); }
+.icard-price { display: inline-block; margin-top: 4px; }
+.icard-sale { margin-top: 7px; }
+.icard-status { width: 100%; min-width: 0; margin-top: 7px; }
+.view-seg { flex-shrink: 0; }
+.view-seg button { padding: 6px 12px; display: inline-flex; align-items: center; }
 input, select, textarea {
   background: var(--surface2); border: 1px solid var(--border2); color: var(--text);
   border-radius: var(--radius-sm); padding: 9px 11px; font-size: 13px; font-family: var(--sans);
@@ -599,7 +609,9 @@ function defaultUi() {
   return {
     tab: "inventory",
     inv: { q: "", cat: "", status: "", sort: "recent", showNeeds: true, view: "list", addType: "item" },
-    wishlist: { q: "", cat: "", sort: "priority", showClosed: false, addGap: "" }
+    wishlist: { q: "", cat: "", sort: "priority", showClosed: false, addGap: "", view: "list" },
+    selling: { view: "list" },
+    gone: { view: "list" }
   };
 }
 function loadUi() {
@@ -612,6 +624,8 @@ function loadUi() {
         if (["inventory", "wishlist", "selling", "gone"].indexOf(s.tab) !== -1) d.tab = s.tab;
         if (s.inv) Object.assign(d.inv, s.inv);
         if (s.wishlist) Object.assign(d.wishlist, s.wishlist);
+        if (s.selling) Object.assign(d.selling, s.selling);
+        if (s.gone) Object.assign(d.gone, s.gone);
       }
     }
   } catch (e) { console.warn("ui load failed", e); }
@@ -808,10 +822,7 @@ function renderInventory() {
       '<button type="button" id="inv-showneeds" class="toggle-pill' + (ui.inv.showNeeds ? " on" : "") + '" data-action="toggle-showneeds" title="Show the gaps you\'ve noted from Needs, slotted into each category">' + needsToggleHTML(openNeedsCount) + "</button>" +
       '' +
       '<select id="inv-sort"><option value="recent"' + (ui.inv.sort==="recent"?" selected":"") + '>Recently added</option><option value="name"' + (ui.inv.sort==="name"?" selected":"") + '>Name A–Z</option><option value="colour"' + (ui.inv.sort==="colour"?" selected":"") + '>Colour</option><option value="custom"' + (ui.inv.sort==="custom"?" selected":"") + '>Custom order</option></select>' +
-      '<div class="seg" id="inv-view">' +
-        '<button type="button" data-action="set-view" data-view="list" class="' + (ui.inv.view!=="cards"?"on":"") + '" title="List view"><svg class="svg sm" viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg></button>' +
-        '<button type="button" data-action="set-view" data-view="cards" class="' + (ui.inv.view==="cards"?"on":"") + '" title="Card view"><svg class="svg sm" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></button>' +
-      "</div>" +
+      viewToggle("inv", ui.inv.view) +
     "</div>" +
     '<div id="inv-list"></div>';
   fillInventory();
@@ -940,6 +951,17 @@ const SVG_SWAP = '<svg class="svg sm" viewBox="0 0 24 24"><path d="M16 3l4 4-4 4
 const SVG_CHECK = '<svg class="svg sm" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>';
 const SVG_BACK = '<svg class="svg sm" viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-3"/></svg>';
 const SVG_TAG = '<svg class="svg sm" viewBox="0 0 24 24"><path d="M20.59 13.41 13.42 20.59a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><circle cx="7" cy="7" r="1.2"/></svg>';
+const SVG_CART = '<svg class="svg sm" viewBox="0 0 24 24"><path d="M20.38 3.46 16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.47a1 1 0 0 0 .99.84H6v10a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V10h2.15a1 1 0 0 0 .99-.84l.58-3.47a2 2 0 0 0-1.34-2.23z"/></svg>';
+const SVG_VIEW_LIST = '<svg class="svg sm" viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>';
+const SVG_VIEW_CARDS = '<svg class="svg sm" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>';
+// Reusable list/card switch for any tab. scope ∈ {inv, wish, sell, gone}.
+function viewToggle(scope, view) {
+  const cards = view === "cards";
+  return '<div class="seg view-seg">' +
+    '<button type="button" data-action="set-view" data-scope="' + scope + '" data-view="list" class="' + (cards ? "" : "on") + '" title="List view">' + SVG_VIEW_LIST + "</button>" +
+    '<button type="button" data-action="set-view" data-scope="' + scope + '" data-view="cards" class="' + (cards ? "on" : "") + '" title="Card view">' + SVG_VIEW_CARDS + "</button>" +
+  "</div>";
+}
 function itemMeta(i) {
   const m = [];
   if (i.brand) m.push(esc(i.brand));
@@ -983,19 +1005,16 @@ function itemCard(i) {
 }
 
 /* ---------- Selling/Donating & Decommissioned tabs ---------- */
-function groupItemsByCategory(items, rowFn) {
+function groupItemsByCategory(items, rowFn, cards) {
+  const wrap = inner => cards ? '<div class="group-cards">' + inner + "</div>" : inner;
   let html = "";
-  allCategories().forEach(cat => {
-    const inCat = items.filter(i => i.category === cat);
-    if (!inCat.length) return;
-    html += '<div class="group-head"><h3>' + esc(cat) + '</h3><span class="gc">' + inCat.length + "</span></div>";
-    inCat.forEach(i => { html += rowFn(i); });
-  });
-  const others = items.filter(i => allCategories().indexOf(i.category) === -1);
-  if (others.length) {
-    html += '<div class="group-head"><h3>Uncategorised</h3><span class="gc">' + others.length + "</span></div>";
-    others.forEach(i => { html += rowFn(i); });
-  }
+  const emit = (label, list) => {
+    if (!list.length) return;
+    html += '<div class="group-head"><h3>' + esc(label) + '</h3><span class="gc">' + list.length + "</span></div>";
+    html += wrap(list.map(rowFn).join(""));
+  };
+  allCategories().forEach(cat => emit(cat, items.filter(i => i.category === cat)));
+  emit("Uncategorised", items.filter(i => allCategories().indexOf(i.category) === -1));
   return html;
 }
 function sellRow(i) {
@@ -1029,20 +1048,65 @@ function goneRow(i) {
       '<button class="act del" data-action="delete" data-type="item" data-id="' + i.id + '" title="Delete permanently">' + SVG_TRASH + "</button>" +
     "</div></div>";
 }
+function sellCard(i) {
+  const isSell = i.status === "sell";
+  const meta = itemMeta(i).join(" · ");
+  const cur = state.settings.currency || "£";
+  return '<div class="icard" data-id="' + i.id + '">' +
+    '<div class="icard-img">' +
+      (i.image ? thumbImg(i.image) : '<span class="icard-swatch">' + colourSwatch(i.colour) + "</span>") +
+      '<span class="pill ' + (isSell ? "sell" : "donate") + ' icard-donate">' + (isSell ? "for sale" : "to donate") + "</span>" +
+    "</div>" +
+    '<div class="icard-body"><div class="icard-name">' + esc(i.name) + "</div>" +
+      (meta ? '<div class="icard-meta">' + esc(meta) + "</div>" : "") +
+      (isSell ? '<span class="sale-wrap icard-sale"><span class="cur">' + esc(cur) + '</span><input class="sale-price" data-id="' + i.id + '" inputmode="decimal" autocomplete="off" placeholder="price" value="' + (Number(i.salePrice) > 0 ? esc(i.salePrice) : "") + '" title="Asking price"></span>' : "") +
+    "</div>" +
+    '<div class="icard-acts">' +
+      '<button class="act" data-action="sell-toggle" data-id="' + i.id + '" title="Switch to ' + (isSell ? "donate" : "sell") + '">' + SVG_SWAP + "</button>" +
+      '<button class="act" data-action="decommission" data-id="' + i.id + '" title="' + (isSell ? "Sold" : "Donated") + " — move to Decommissioned\">" + SVG_CHECK + "</button>" +
+      '<button class="act" data-action="restore-keep" data-id="' + i.id + '" title="Keep — back to wardrobe">' + SVG_BACK + "</button>" +
+      '<button class="act" data-action="edit" data-type="item" data-id="' + i.id + '" title="Edit">' + SVG_EDIT + "</button>" +
+      '<button class="act del" data-action="delete" data-type="item" data-id="' + i.id + '" title="Delete">' + SVG_TRASH + "</button>" +
+    "</div></div>";
+}
+function goneCard(i) {
+  const meta = itemMeta(i).join(" · ");
+  const outcome = i.outcome || "retired";
+  const soldFor = (outcome === "sold" && Number(i.salePrice) > 0) ? '<span class="row-price icard-price">' + money(i.salePrice) + "</span>" : "";
+  return '<div class="icard gone" data-id="' + i.id + '">' +
+    '<div class="icard-img">' +
+      (i.image ? thumbImg(i.image) : '<span class="icard-swatch">' + colourSwatch(i.colour) + "</span>") +
+      '<span class="pill ' + outcome + ' icard-donate">' + outcome + "</span>" +
+    "</div>" +
+    '<div class="icard-body"><div class="icard-name">' + esc(i.name) + "</div>" +
+      (meta ? '<div class="icard-meta">' + esc(meta) + "</div>" : "") +
+      soldFor +
+    "</div>" +
+    '<div class="icard-acts">' +
+      '<button class="act" data-action="restore-keep" data-id="' + i.id + '" title="Restore to wardrobe">' + SVG_BACK + "</button>" +
+      '<button class="act del" data-action="delete" data-type="item" data-id="' + i.id + '" title="Delete permanently">' + SVG_TRASH + "</button>" +
+    "</div></div>";
+}
 function renderSelling() {
   const items = state.items.filter(i => i.status === "donate" || i.status === "sell");
   const listTotal = items.filter(i => i.status === "sell").reduce((a, i) => a + (Number(i.salePrice) || 0), 0);
   const summary = listTotal > 0 ? '<div class="tab-summary">' + money(listTotal) + " if you sell everything listed</div>" : "";
+  const cards = ui.selling.view === "cards";
   document.getElementById("main").innerHTML = items.length
-    ? '<div class="reorder-hint">⇄ switch sell ↔ donate · set an asking price · ✓ mark it gone (sold/donated) · ↩ keep it.</div>' + summary + groupItemsByCategory(items, sellRow)
+    ? '<div class="reorder-hint">⇄ switch sell ↔ donate · set an asking price · ✓ mark it gone (sold/donated) · ↩ keep it.</div>' + summary +
+      '<div class="filters"><span class="spread" style="flex:1"></span>' + viewToggle("sell", ui.selling.view) + "</div>" +
+      groupItemsByCategory(items, cards ? sellCard : sellRow, cards)
     : emptyState("🏷️", "Nothing to sell or donate", "When you're ready to part with something, open it in Inventory and use the 🏷 tag to move it here as For sale or To donate.");
 }
 function renderGone() {
   const items = state.items.filter(i => i.status === "gone");
   const recouped = items.filter(i => i.outcome === "sold").reduce((a, i) => a + (Number(i.salePrice) || 0), 0);
   const summary = recouped > 0 ? '<div class="tab-summary">' + money(recouped) + " recouped from sales</div>" : "";
+  const cards = ui.gone.view === "cards";
   document.getElementById("main").innerHTML = items.length
-    ? '<div class="reorder-hint">Items that have left your wardrobe. ↩ restore one, or delete it for good.</div>' + summary + groupItemsByCategory(items, goneRow)
+    ? '<div class="reorder-hint">Items that have left your wardrobe. ↩ restore one, or delete it for good.</div>' + summary +
+      '<div class="filters"><span class="spread" style="flex:1"></span>' + viewToggle("gone", ui.gone.view) + "</div>" +
+      groupItemsByCategory(items, cards ? goneCard : goneRow, cards)
     : emptyState("📦", "Nothing decommissioned", "Things you've sold, donated or retired get archived here once they leave your wardrobe.");
 }
 
@@ -1090,6 +1154,7 @@ function renderWishlist() {
       '<button type="button" id="wish-showclosed" class="toggle-pill' + (w.showClosed ? " on" : "") + '" data-action="toggle-showclosed" title="Show bought &amp; passed options">Closed</button>' +
       '<div class="spread" style="flex:1"></div>' +
       '<select id="wish-sort"><option value="priority"' + (w.sort==="priority"?" selected":"") + '>By status</option><option value="price"' + (w.sort==="price"?" selected":"") + '>By price</option><option value="recent"' + (w.sort==="recent"?" selected":"") + '>Recently added</option></select>' +
+      viewToggle("wish", w.view) +
     "</div>" +
     '<div id="wish-list"></div>';
   fillWishlist();
@@ -1141,6 +1206,8 @@ function fillWishlist() {
     return;
   }
 
+  const cards = w.view === "cards";
+  const renderOpts = list => cards ? '<div class="group-cards wish-cards">' + list.map(optionCard).join("") + "</div>" : list.map(optionRow).join("");
   const buildCat = (cat, uncat) => {
     const inCat = x => uncat ? allCategories().indexOf(x.category) === -1 : x.category === cat;
     const catOptions = options.filter(inCat);
@@ -1152,10 +1219,10 @@ function fillWishlist() {
       block += gapHead(g);
       const gOpts = catOptions.filter(c => c.gapId === g.id).sort(sortOpt);
       block += gOpts.length
-        ? gOpts.map(optionRow).join("")
+        ? renderOpts(gOpts)
         : '<div class="gap-empty">No options yet — <button type="button" class="linklike" data-action="add-option-for" data-id="' + g.id + '">add one</button></div>';
     });
-    if (looseOpts.length) { block += looseHead(looseOpts.length); block += looseOpts.map(optionRow).join(""); }
+    if (looseOpts.length) { block += looseHead(looseOpts.length); block += renderOpts(looseOpts); }
     return block;
   };
 
@@ -1211,6 +1278,31 @@ function optionRow(c) {
       '<button class="act" data-action="consider-to-wardrobe" data-id="' + c.id + '" title="Bought it — add to wardrobe (fills the gap)"><svg class="svg sm" viewBox="0 0 24 24"><path d="M20.38 3.46 16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.47a1 1 0 0 0 .99.84H6v10a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V10h2.15a1 1 0 0 0 .99-.84l.58-3.47a2 2 0 0 0-1.34-2.23z"/></svg></button>' +
       '<button class="act" data-action="edit" data-type="consider" data-id="' + c.id + '" title="Edit"><svg class="svg sm" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></button>' +
       '<button class="act del" data-action="delete" data-type="consider" data-id="' + c.id + '" title="Delete"><svg class="svg sm" viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></button>' +
+    "</div></div>";
+}
+// An option rendered as an image-forward card (Wishlist card view).
+function optionCard(c) {
+  const st = c.status || "Considering";
+  const url = safeUrl(c.url);
+  const closed = st === "Bought" || st === "Passed";
+  const cmeta = [c.brand, c.notes].filter(Boolean).map(esc).join(" · ");
+  const priceHtml = (Number(c.price) > 0) ? '<span class="row-price icard-price">' + money(c.price) + "</span>" : "";
+  const link = url ? '<a class="act" href="' + esc(url) + '" target="_blank" rel="noopener" title="View ' + esc(c.name) + '">' + SVG_LINK + "</a>" : "";
+  return '<div class="icard option' + (closed ? " closed" : "") + '" data-id="' + c.id + '">' +
+    '<div class="icard-img">' +
+      (c.image ? thumbImg(c.image) : '<span class="icard-swatch">' + colourSwatch(c.colour) + "</span>") +
+      '<span class="opt-dot ' + st.toLowerCase() + ' icard-dot" title="' + st + '"></span>' +
+    "</div>" +
+    '<div class="icard-body"><div class="icard-name">' + esc(c.name) + "</div>" +
+      (cmeta ? '<div class="icard-meta">' + cmeta + "</div>" : "") +
+      priceHtml +
+      '<select class="opt-status icard-status" data-action="consider-status" data-id="' + c.id + '">' + opts(CONSIDER_STATUS, st) + "</select>" +
+    "</div>" +
+    '<div class="icard-acts">' +
+      link +
+      '<button class="act" data-action="consider-to-wardrobe" data-id="' + c.id + '" title="Bought it — add to wardrobe (fills the gap)">' + SVG_CART + "</button>" +
+      '<button class="act" data-action="edit" data-type="consider" data-id="' + c.id + '" title="Edit">' + SVG_EDIT + "</button>" +
+      '<button class="act del" data-action="delete" data-type="consider" data-id="' + c.id + '" title="Delete">' + SVG_TRASH + "</button>" +
     "</div></div>";
 }
 
@@ -1767,7 +1859,17 @@ document.addEventListener("click", e => {
     case "filter-cat": ui.inv.cat = (ui.inv.cat === actEl.dataset.cat) ? "" : actEl.dataset.cat; fillInventory(); break;
     case "goto-cat": ui.tab = "inventory"; ui.inv.cat = actEl.dataset.cat; ui.inv.q = ""; ui.inv.status = ""; renderMain(); window.scrollTo(0, 0); break;
     case "toggle-showneeds": ui.inv.showNeeds = !ui.inv.showNeeds; renderInventory(); break;
-    case "set-view": ui.inv.view = actEl.dataset.view; renderInventory(); break;
+    case "set-view": {
+      const scope = actEl.dataset.scope || "inv";
+      const target = { inv: ui.inv, wish: ui.wishlist, sell: ui.selling, gone: ui.gone }[scope] || ui.inv;
+      target.view = actEl.dataset.view;
+      saveUi();
+      if (scope === "wish") renderWishlist();
+      else if (scope === "sell") renderSelling();
+      else if (scope === "gone") renderGone();
+      else renderInventory();
+      break;
+    }
     case "wish-filter-cat": ui.wishlist.cat = (ui.wishlist.cat === actEl.dataset.cat) ? "" : actEl.dataset.cat; fillWishlist(); break;
     case "toggle-showclosed": ui.wishlist.showClosed = !ui.wishlist.showClosed; renderWishlist(); break;
     case "rm-cat": removeCustomCategory(actEl.dataset.cat); break;

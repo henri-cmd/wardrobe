@@ -20,7 +20,7 @@ No build step, no dependencies, no account. Open `index.html` in a browser and g
 - **Images** — give any item or option a picture: **upload** a file, **paste** an image, **fetch** it from a product link, or enter an image URL. Uploads are downscaled to fit local storage; click any thumbnail to view it full-size.
 - **Add by link** — paste a product link and it auto-fills the **name**, **image** and **brand** (via the [microlink](https://microlink.io) metadata service, with an OpenGraph fallback).
 - **Custom categories** — add your own (inline in any dropdown, or in Settings), rename, delete, or **drag to reorder** them. No built-in defaults — the taxonomy is entirely yours.
-- **Views & ordering** — switch Inventory between **list** and image-forward **card** views, sort by recent / name / colour, or pick **Custom order** and drag items to arrange them.
+- **Views & ordering** — switch **any tab** (Inventory, Wishlist, Selling/Donating, Decommissioned) between **list** and image-forward **card** views; each tab remembers your choice. Sort Inventory by recent / name / colour, or pick **Custom order** and drag items to arrange them.
 - **Yours, and portable** — JSON export / import for backups; everything (incl. images) stays in your browser. Every destructive action has an **Undo**.
 
 ## Keyboard shortcuts
