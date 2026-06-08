@@ -11,7 +11,7 @@ No build step, no dependencies, no account. Open `index.html` in a browser and g
 ## The four tabs
 
 - **Inventory** — what you own (name, category, colour, brand, quantity, season), plus the **gaps** you've noted, grouped by category. "Items owned" counts total pieces, with a **×N** badge for multiples. The 🏷 tag on any item moves it to *For sale* or *To donate*.
-- **Wishlist** — a shopping board organised **Category → Gap → Options**. Each gap nests the options you're comparing (brand, price, status, link); options not tied to a gap sit in a *Not tied to a gap* bucket. Mark an option **Bought** and it converts into an Inventory item and **fills its gap**.
+- **Wishlist** — a shopping board organised **Category → Gap → Options**. Each gap nests the options you're comparing (brand, price, status, link); options not tied to a gap sit in a *Not tied to a gap* bucket — use the **◇** button to file one under an existing gap (or spin up a new gap on the spot). Mark an option **Bought** and it converts into an Inventory item and **fills its gap**.
 - **Selling/Donating** — items you're parting with, tagged *for sale* (with an inline asking price; the tab totals what you'd recoup) or *to donate*. Mark one gone to send it to Decommissioned.
 - **Decommissioned** — what's left your wardrobe (**sold** / **donated** / **retired**), with the price you sold it for and a *recouped from sales* total. Restore anything back to your wardrobe.
 
