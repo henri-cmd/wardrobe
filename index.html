@@ -1047,13 +1047,25 @@ function renderGone() {
 }
 
 /* ---------- Wishlist (gaps + options, grouped by category like Inventory) ---------- */
-function gapSelect(id, sel) {
+function gapSelect(id, sel, allowNew) {
   const openGaps = state.needs.filter(n => !n.done);
   let html = '<option value="">— Not tied to a gap —</option>';
   const grp = (label, gaps) => gaps.length ? '<optgroup label="' + esc(label) + '">' + gaps.map(g => '<option value="' + g.id + '"' + (g.id === sel ? " selected" : "") + ">" + esc(g.name) + "</option>").join("") + "</optgroup>" : "";
   allCategories().forEach(cat => { html += grp(cat, openGaps.filter(g => g.category === cat)); });
   html += grp("Uncategorised", openGaps.filter(g => allCategories().indexOf(g.category) === -1));
+  if (allowNew) html += '<option value="__newgap__">+ New gap…</option>';
   return '<select id="' + id + '" title="Which gap is this option for?">' + html + "</select>";
+}
+function handleNewGap() {
+  const name = (window.prompt("New gap — what are you missing?") || "").trim();
+  if (!name) { ui.wishlist.addGap = ""; renderWishlist(); focus("wish-name"); return; }
+  const cat = ui.wishlist.cat || cleanCat(val("wish-cat"));
+  const id = uid();
+  state.needs.push({ id, name, category: cat, priority: "Medium", quantity: 1, notes: "", done: false, createdAt: Date.now() });
+  save();
+  ui.wishlist.addGap = id;
+  renderWishlist();
+  focus("wish-name");
 }
 function renderWishlist() {
   const w = ui.wishlist;
@@ -1065,7 +1077,7 @@ function renderWishlist() {
         '<button type="button" class="btn ghost sm" data-action="upload-img" data-for="wish" title="Upload an image from your device">Upload</button>' +
         '<div class="thumb-preview" id="wish-thumb"></div>' +
       "</div>" +
-      gapSelect("wish-gap", w.addGap) +
+      gapSelect("wish-gap", w.addGap, true) +
       '<input class="grow" id="wish-name" placeholder="An option you\'re weighing (e.g. Uniqlo merino crew)" autocomplete="off" required>' +
       '<span id="wish-cat-wrap"' + (w.addGap ? ' style="display:none"' : "") + ">" + catSelect("wish-cat", "", { placeholder: "Category…" }) + "</span>" +
       '<input id="wish-price" placeholder="Price" inputmode="decimal" autocomplete="off" style="width:90px">' +
@@ -1789,7 +1801,7 @@ document.addEventListener("change", e => {
   if (t.id === "inv-status") { ui.inv.status = t.value; fillInventory(); }
   else if (t.id === "inv-sort") { ui.inv.sort = t.value; fillInventory(); }
   else if (t.id === "wish-sort") { ui.wishlist.sort = t.value; fillWishlist(); }
-  else if (t.id === "wish-gap") { ui.wishlist.addGap = t.value; const wrap = document.getElementById("wish-cat-wrap"); if (wrap) wrap.style.display = t.value ? "none" : ""; }
+  else if (t.id === "wish-gap") { if (t.value === "__newgap__") { handleNewGap(); return; } ui.wishlist.addGap = t.value; const wrap = document.getElementById("wish-cat-wrap"); if (wrap) wrap.style.display = t.value ? "none" : ""; }
   else if (t.classList && t.classList.contains("sale-price")) { const i = find("item", t.dataset.id); if (i) { i.salePrice = parsePrice(t.value); save(); renderStats(); renderSelling(); } }
   else if (t.dataset && t.dataset.action === "consider-status") {
     const c = find("consider", t.dataset.id);
